@@ -42,7 +42,39 @@ export function createProfile(now = Date.now()) {
  * Persistence
  * ------------------------------------------------------------------ */
 
-export function load(storage = globalThis.localStorage) {
+/**
+ * localStorage, or an in-memory stand-in.
+ *
+ * Reading `globalThis.localStorage` throws outright in a sandboxed frame, which
+ * is where this app runs when it is published as a single page rather than
+ * served. That throw happens while evaluating a default parameter, before any
+ * try/catch in the function body, so the guard has to live here. Falling back
+ * to memory keeps a session working end to end; only a reload loses it.
+ */
+const memoryStore = new Map();
+
+export const memoryStorage = {
+  getItem: (k) => (memoryStore.has(k) ? memoryStore.get(k) : null),
+  setItem: (k, v) => memoryStore.set(k, String(v)),
+  removeItem: (k) => memoryStore.delete(k),
+  persistent: false,
+};
+
+export function defaultStorage() {
+  try {
+    const store = globalThis.localStorage;
+    if (!store) return memoryStorage;
+    // Safari in private mode exposes the object but throws on write.
+    const probe = '__dojo_probe__';
+    store.setItem(probe, '1');
+    store.removeItem(probe);
+    return store;
+  } catch {
+    return memoryStorage;
+  }
+}
+
+export function load(storage = defaultStorage()) {
   try {
     const raw = storage?.getItem(STORAGE_KEY);
     if (!raw) return createProfile();
@@ -53,7 +85,7 @@ export function load(storage = globalThis.localStorage) {
   }
 }
 
-export function save(profile, storage = globalThis.localStorage) {
+export function save(profile, storage = defaultStorage()) {
   try {
     storage?.setItem(STORAGE_KEY, JSON.stringify(profile));
     return true;
@@ -62,7 +94,7 @@ export function save(profile, storage = globalThis.localStorage) {
   }
 }
 
-export function reset(storage = globalThis.localStorage) {
+export function reset(storage = defaultStorage()) {
   try {
     storage?.removeItem(STORAGE_KEY);
   } catch {

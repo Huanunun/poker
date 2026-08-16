@@ -60,6 +60,14 @@
   --page: 880px;
 }
 
+/*
+ * Theming has three states, not two. An explicit choice stamps data-theme on
+ * the root; the default "system" setting stamps nothing, and only
+ * prefers-color-scheme separates light from dark. This design is dark-first, so
+ * the bare :root above is the complete dark palette, and light is redefined
+ * twice: once for a light OS with no explicit choice, and once for an explicit
+ * light choice that must win over a dark OS.
+ */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --bg:            #f4f6fa;
@@ -88,6 +96,35 @@
     --shadow:    0 1px 3px rgba(20, 30, 50, .1);
     --shadow-lg: 0 8px 28px rgba(20, 30, 50, .14);
   }
+}
+
+/* Explicit light choice, which must also win when the OS is dark. */
+:root[data-theme="light"] {
+  --bg:            #f4f6fa;
+  --bg-raised:     #ffffff;
+  --bg-sunken:     #e8ecf3;
+  --surface:       #ffffff;
+  --surface-hover: #f0f3f8;
+  --border:        #dde3ed;
+  --border-strong: #c3ccdb;
+
+  --text:          #131822;
+  --text-muted:    #55617a;
+  --text-faint:    #8a94a8;
+
+  --accent:        #1668cc;
+  --accent-hover:  #1257ad;
+  --accent-dim:    #dbe9fb;
+
+  --good:          #12855c;
+  --good-dim:      #d6f2e6;
+  --bad:           #c9303c;
+  --bad-dim:       #fbdde0;
+  --warn:          #9a6b06;
+  --warn-dim:      #fbeecd;
+
+  --shadow:    0 1px 3px rgba(20, 30, 50, .1);
+  --shadow-lg: 0 8px 28px rgba(20, 30, 50, .14);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
