@@ -111,8 +111,35 @@ export function milestones() {
  * Today's session
  * ------------------------------------------------------------------ */
 
-/** Rough time cost of one generated question, in minutes. */
-const MINUTES_PER_QUESTION = 0.7;
+/**
+ * Rough time cost of one generated question, in minutes.
+ *
+ * Raised from 0.7: reading the explanation after each answer is most of the
+ * time cost, and the earlier figure produced 36-question sessions against a
+ * 30-minute goal.
+ */
+const MINUTES_PER_QUESTION = 0.95;
+
+/**
+ * How often the same drill generator may appear in one session.
+ *
+ * Without this the filler cycles a handful of generators and a session becomes
+ * the same question over and over with different cards. Variety is not a
+ * nicety — repeatedly answering one question shape teaches that shape rather
+ * than the skill, and it is boring, which is worse.
+ */
+const MAX_PER_GENERATOR = 2;
+
+/**
+ * The same cap inside a single lesson.
+ *
+ * Slightly looser than the practice cap, because a lesson teaching one idea
+ * legitimately wants a few repetitions of it — but not five in a row.
+ */
+const MAX_PER_GENERATOR_IN_LESSON = 3;
+
+/** Hard ceiling on questions, so a session never becomes a grind. */
+const questionBudget = (minutes) => Math.max(6, Math.round(minutes / 2.2));
 
 /** The next lesson the learner has not completed. */
 export function nextLesson(progress) {
@@ -140,9 +167,19 @@ export function buildSession(progress, budgetMinutes = 30, now = Date.now(), see
   let seed = seedBase >>> 0;
   const nextSeed = () => (seed = (seed * 1664525 + 1013904223) >>> 0);
 
+  const maxQuestions = questionBudget(budgetMinutes);
+  const usedGenerators = new Map();
+  let asked = 0;
+
   const push = (item, minutes) => {
     items.push(item);
     spent += minutes;
+    const exercises = item.type === 'lesson' ? item.exercises : [item.exercise];
+    for (const ex of exercises) {
+      if (!ex) continue;
+      usedGenerators.set(ex.generator, (usedGenerators.get(ex.generator) || 0) + 1);
+      asked += questionCount(ex);
+    }
   };
 
   // --- 1. Reviews that are due ---------------------------------------------
@@ -150,8 +187,9 @@ export function buildSession(progress, budgetMinutes = 30, now = Date.now(), see
   const reviewBudget = budgetMinutes * (progress.completedLessons ? 0.4 : 0);
 
   for (const record of due) {
-    if (spent >= reviewBudget) break;
-    const gens = generatorsFor(record.skill, ceiling);
+    if (spent >= reviewBudget || asked >= maxQuestions) break;
+    const gens = generatorsFor(record.skill, ceiling)
+      .filter((id) => (usedGenerators.get(id) || 0) < MAX_PER_GENERATOR);
     if (!gens.length) continue;
     const gen = gens[nextSeed() % gens.length];
     const exercise = generate(gen, nextSeed());
@@ -164,10 +202,30 @@ export function buildSession(progress, budgetMinutes = 30, now = Date.now(), see
   // --- 2. The new lesson ----------------------------------------------------
   const lesson = nextLesson(progress);
   if (lesson && spent < budgetMinutes) {
+    // Build the lesson's drills round-robin across its generators rather than
+    // all of one then all of the next, and cap how many times any single
+    // generator can appear. Five consecutive questions of identical shape is
+    // the repetition that makes a session feel like a grind, and it teaches
+    // the shape rather than the skill.
+    // Subtract anything the review queue already used, so a review followed by
+    // the lesson's own drills cannot stack up past the cap.
+    const buckets = lesson.drills.map((drill) => ({
+      drill,
+      remaining: Math.max(0, Math.min(
+        drill.count,
+        MAX_PER_GENERATOR_IN_LESSON - (usedGenerators.get(drill.gen) || 0),
+      )),
+    }));
+
     const drills = [];
-    for (const drill of lesson.drills) {
-      for (let i = 0; i < drill.count; i++) {
-        drills.push(generate(drill.gen, nextSeed(), drill.params || {}));
+    let placed = true;
+    while (placed) {
+      placed = false;
+      for (const bucket of buckets) {
+        if (bucket.remaining <= 0) continue;
+        drills.push(generate(bucket.drill.gen, nextSeed(), bucket.drill.params || {}));
+        bucket.remaining--;
+        placed = true;
       }
     }
 
@@ -210,14 +268,30 @@ export function buildSession(progress, budgetMinutes = 30, now = Date.now(), see
     .filter((s) => poolIds.has(s.id) && generatorsFor(s.id, ceiling).length)
     .sort((a, b) => strength(records[a.id], now) - strength(records[b.id], now));
 
-  for (let guard = 0; spent < budgetMinutes && practicable.length && guard < 40; guard++) {
-    const skill = practicable[guard % Math.min(practicable.length, 5)];
-    const gens = generatorsFor(skill.id, ceiling);
-    const exercise = generate(gens[nextSeed() % gens.length], nextSeed());
-    push(
-      { type: 'practice', skill: skill.id, exercise },
-      questionCount(exercise) * MINUTES_PER_QUESTION,
-    );
+  // Round-robin across the weakest skills, and within each skill prefer a
+  // generator that has not been used yet this session. Cycling by skill first
+  // stops one weak skill monopolising the whole filler.
+  for (let round = 0; spent < budgetMinutes && practicable.length && round < 30; round++) {
+    let addedThisRound = 0;
+
+    for (const skill of practicable) {
+      if (spent >= budgetMinutes || asked >= maxQuestions) break;
+
+      const gens = generatorsFor(skill.id, ceiling);
+      const fresh = gens.filter((id) => (usedGenerators.get(id) || 0) < MAX_PER_GENERATOR);
+      if (!fresh.length) continue;
+
+      const gen = fresh[nextSeed() % fresh.length];
+      const exercise = generate(gen, nextSeed());
+      push(
+        { type: 'practice', skill: skill.id, exercise },
+        questionCount(exercise) * MINUTES_PER_QUESTION,
+      );
+      addedThisRound++;
+    }
+
+    // Every generator is exhausted; stop rather than spinning.
+    if (!addedThisRound) break;
   }
 
   return {
@@ -227,6 +301,7 @@ export function buildSession(progress, budgetMinutes = 30, now = Date.now(), see
     lesson,
     reviewCount: items.filter((i) => i.type === 'review').length,
     practiceCount: items.filter((i) => i.type === 'practice').length,
+    questionCount: asked,
     ceiling,
   };
 }

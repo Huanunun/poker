@@ -203,25 +203,25 @@ export const UI_EN = {
 
 export const UI_ZH = {
   /* Shell */
-  'app.name': '德州扑克道场',
+  'app.name': '德扑训练营',
   'nav.today': '今天',
   'nav.path': '课程',
   'nav.progress': '进度',
-  'nav.sandbox': '计算器',
+  'nav.sandbox': '工具',
   'stat.streak': '天连续',
   'stat.xp': '经验值',
   'stat.mastery': '掌握度',
   'stat.accuracy': '正确率',
-  'stat.difficulty': '难度',
+  'stat.difficulty': '当前难度',
   'stat.daysActive': '学习天数',
   'stat.bestStreak': '最长连续',
   'stat.questions': '题目数',
 
   /* Difficulty tiers */
-  'difficulty.2': '打基础',
+  'difficulty.2': '基础',
   'difficulty.3': '标准',
-  'difficulty.4': '进阶',
-  'difficulty.5': '高难',
+  'difficulty.4': '精进',
+  'difficulty.5': '硬核',
 
   /* Today */
   'today.day': '第 {day} 天 · 已完成 {done} / {total} 课',
@@ -241,10 +241,10 @@ export const UI_ZH = {
   'goal.seriousDetail': '45 分钟——最快的合理进度',
   'today.howItWorks': '这套系统怎么用',
   'today.howItWorksBody':
-    '这门课假设你已经懂规则，但还不会给一个决策"算价钱"。所以它直接从数学开始——没有牌型大小、没有牌面记号——每一课都指向五个问题之一：下注、过牌、跟注、加注、还是弃牌，以及下多少。\n\n'
-    + '这里不需要背任何东西。那些赔率表本来就记不住，也不该去记：目标是让你在牌桌上用五秒钟、靠数数把答案算出来。速算技巧只会在你用笨办法算过很多遍之后才出现——而且会告诉你它在什么情况下会算错。\n\n'
-    + '只讲现金局（cash game），6 到 10 人桌，100 个大盲筹码。不涉及锦标赛。\n\n'
-    + '做错的内容明天会再出现；做对的三天后再出现，然后一周、一个月。如果你觉得太简单，难度会自动往上调，这些你都不用操心。',
+    '这门课默认你已经懂规则，缺的是"算账"的能力。所以它直接从算法开始——不教牌型大小、不教牌面记号——每一课都指向五个问题之一：下注、过牌、跟注、加注、弃牌，以及下多少。\n\n'
+    + '这里没有需要背的东西。那些胜率表本来就背不下来，也不该背：目标是让你在牌桌上五秒之内、靠数补牌把答案算出来。像二四法则这种速算，只会在你用笨办法算过很多遍之后才登场——而且会同时告诉你它什么时候会算高。\n\n'
+    + '只讲现金局（cash game），6 到 10 人桌，100bb 起始筹码，不涉及锦标赛。\n\n'
+    + '做错的内容明天再出现，做对的三天后、一周后、一个月后再出现。觉得太简单，难度会自己往上调，这些都不用你管。',
 
   /* Path */
   'path.title': '课程路径',
@@ -257,21 +257,21 @@ export const UI_ZH = {
   'path.missNote': '中断一周也不会丢失任何东西。练习会从你真正掌握的地方接着来，而不是从日历该在的地方。',
 
   /* Session player */
-  'session.ideaOf': '{level} · {unit} · 第 {n} / {total} 个概念',
+  'session.ideaOf': '{level} · {unit} · 要点 {n}/{total}',
   'session.gotIt': '明白了',
-  'session.takeaway': '这一课的重点',
+  'session.takeaway': '本课要点',
   'session.finishLesson': '完成本课',
   'session.review': '复习',
   'session.practice': '练习',
-  'session.stepOf': '第 {n} 步，共 {total} 步',
-  'session.check': '确认',
+  'session.stepOf': '第 {n} 步 / 共 {total} 步',
+  'session.check': '提交',
   'session.continue': '继续',
   'session.showHint': '看提示',
   'session.hint': '提示',
   'session.correct': '正确',
   'session.closeButNot': '很接近，但还不对',
   'session.notQuite': '不对',
-  'session.chainComplete': '整条思路走完了',
+  'session.chainComplete': '这条思路走完了',
   'session.stepsCorrect': '{total} 步里答对了 {n} 步',
   'session.youSaid': '你的答案是 {answer}。',
   'session.answerIs': '正确答案是 {answer}。',
@@ -324,7 +324,7 @@ export const UI_ZH = {
   /* Strength labels */
   'strength.solid': '扎实',
   'strength.good': '良好',
-  'strength.shaky': '不稳',
+  'strength.shaky': '不牢',
   'strength.rusty': '生疏',
   'strength.new': '未开始',
   'due.notStarted': '尚未开始',
@@ -336,50 +336,50 @@ export const UI_ZH = {
 
   /* Strands */
   'strand.decisions': '五个决策',
-  'strand.maths': '背后的数学',
+  'strand.maths': '背后的算法',
   'strand.reading': '读牌面',
   'strand.table': '位置与牌桌',
   'strand.opponent': '读对手',
-  'strand.self': '管好自己',
+  'strand.self': '心态与资金',
 
   /* Sandbox */
-  'sandbox.title': '计算器',
+  'sandbox.title': '工具箱',
   'sandbox.intro': '把让你困惑的那手牌放进来。每次只改一个条件，看数字怎么变。',
-  'sandbox.equity': '胜率（equity）计算器',
+  'sandbox.equity': '胜率计算器',
   'sandbox.yourHand': '你的手牌',
-  'sandbox.theirHand': '对手的手牌或范围',
+  'sandbox.theirHand': '对手手牌或范围（range）',
   'sandbox.board': '公共牌（翻牌前留空）',
   'sandbox.yourEquity': '你的胜率',
   'sandbox.youWin': '你赢',
   'sandbox.youChop': '平分',
   'sandbox.exactNote': '精确值，穷举了全部 {trials} 种发牌。',
   'sandbox.estimateNote': '基于 {trials} 次模拟的估算。',
-  'sandbox.potOdds': '底池赔率与价格',
+  'sandbox.potOdds': '底池赔率与所需胜率',
   'sandbox.potBefore': '他下注前的底池',
   'sandbox.theirBet': '他的下注额',
-  'sandbox.yourOuts': '你的补牌数（选填）',
+  'sandbox.yourOuts': '补牌（outs）张数，选填',
   'sandbox.equityNeeded': '所需胜率',
   'sandbox.ofPot': '占底池',
-  'sandbox.mustDefend': '你至少要跟注',
-  'sandbox.oneCard': '还剩一张牌',
-  'sandbox.twoCards': '还剩两张牌',
+  'sandbox.mustDefend': '最小防守频率',
+  'sandbox.oneCard': '还剩 1 张',
+  'sandbox.twoCards': '还剩 2 张',
   'sandbox.enterPotAndBet': '请输入底池和下注额。',
-  'sandbox.rangeExplorer': '范围（range）工具',
-  'sandbox.hands': '手牌种类',
+  'sandbox.rangeExplorer': '起手牌范围（range）',
+  'sandbox.hands': '手牌',
   'sandbox.combos': '组合数',
-  'sandbox.ofAllHands': '占所有起手牌',
+  'sandbox.ofAllHands': '占全部起手牌',
   'sandbox.nothingSelected': '还没有选择。',
   'sandbox.clear': '清空',
 
   /* Table labels */
-  'table.flop': '翻牌（flop）',
-  'table.flopTurn': '翻牌与转牌',
+  'table.flop': '翻牌圈',
+  'table.flopTurn': '翻牌圈 + 转牌',
   'table.board': '公共牌',
   'table.yourHand': '你的手牌',
-  'table.theirHand': '对手手牌（本题为你亮出）',
+  'table.theirHand': '对手手牌（本题公开）',
   'table.pot': '底池',
   'table.theyBet': '他下注',
-  'table.stackBehind': '身后筹码',
+  'table.stackBehind': '有效筹码',
   'table.yourSeat': '你的位置',
 
   /* Language */

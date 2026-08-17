@@ -187,3 +187,91 @@ test('the filename says which day it came from', () => {
   assert(name.includes('2026-03-04'), name);
   assert(name.endsWith('.json'), name);
 });
+
+suite('session variety');
+
+/**
+ * The complaint that produced these tests: sessions asked the same question
+ * shape over and over. Variety is not cosmetic — repeatedly answering one shape
+ * teaches the shape rather than the skill, and it is boring, which is worse.
+ */
+const sessionGenerators = (session) => {
+  const order = [];
+  for (const item of session.items) {
+    const exercises = item.type === 'lesson' ? item.exercises : [item.exercise];
+    for (const ex of exercises) if (ex) order.push(ex.generator);
+  }
+  return order;
+};
+
+const maxConsecutive = (list) => {
+  let best = 0;
+  let run = 0;
+  for (let i = 0; i < list.length; i++) {
+    run = i > 0 && list[i] === list[i - 1] ? run + 1 : 1;
+    best = Math.max(best, run);
+  }
+  return best;
+};
+
+const counts = (list) => list.reduce((m, g) => m.set(g, (m.get(g) || 0) + 1), new Map());
+
+/** Drive a learner forward so later sessions can be inspected too. */
+function advance(profile, days, budget = 30) {
+  const sessions = [];
+  let p = profile;
+  for (let day = 0; day < days; day++) {
+    const session = buildSession(p, budget, Date.now(), day + 1);
+    sessions.push(session);
+    for (const item of session.items) {
+      const exercises = item.type === 'lesson' ? item.exercises : [item.exercise];
+      for (const ex of exercises) if (ex) p = recordAnswer(p, ex.skill, true);
+      if (item.type === 'lesson') p = completeLesson(p, item.lessonId, 0.9);
+    }
+  }
+  return { profile: p, sessions };
+}
+
+test('no drill is repeated more than three times in a session', () => {
+  const { sessions } = advance(createProfile(), 40);
+  for (const [i, session] of sessions.entries()) {
+    const worst = Math.max(...counts(sessionGenerators(session)).values());
+    assert(worst <= 3, `day ${i + 1} repeated one drill ${worst} times`);
+  }
+});
+
+test('the same drill never appears more than three times in a row', () => {
+  const { sessions } = advance(createProfile(), 40);
+  for (const [i, session] of sessions.entries()) {
+    const run = maxConsecutive(sessionGenerators(session));
+    assert(run <= 3, `day ${i + 1} had ${run} identical drills back to back`);
+  }
+});
+
+test('a session is a sensible length rather than a grind', () => {
+  for (const budget of [15, 30, 45]) {
+    const { sessions } = advance(createProfile(), 20, budget);
+    for (const [i, session] of sessions.entries()) {
+      const asked = sessionGenerators(session).length;
+      assert(asked <= budget / 1.5, `day ${i + 1} at ${budget}min asked ${asked} questions`);
+      assert(asked >= 3, `day ${i + 1} at ${budget}min asked only ${asked} questions`);
+    }
+  }
+});
+
+test('sessions draw on several different drills, not just one', () => {
+  const { sessions } = advance(createProfile(), 30);
+  for (const [i, session] of sessions.entries()) {
+    const distinct = counts(sessionGenerators(session)).size;
+    assert(distinct >= 3, `day ${i + 1} used only ${distinct} distinct drill(s)`);
+  }
+});
+
+test('a short session is preferred over padding it with repeats', () => {
+  // Day one has few available skills. The session should simply be shorter
+  // rather than filling thirty minutes with the same two questions.
+  const session = buildSession(createProfile(), 45, Date.now(), 3);
+  const worst = Math.max(...counts(sessionGenerators(session)).values());
+  assert(worst <= 3, `padded to ${worst} repeats instead of ending early`);
+  assert(session.estimatedMinutes < 45, 'should not claim to fill the whole budget with repeats');
+});
