@@ -36,12 +36,12 @@
   --warn:          #f0b344;
   --warn-dim:      #3a2c12;
 
-  --strand-reading:  #4da3ff;
-  --strand-maths:    #35c48a;
-  --strand-preflop:  #b07cf0;
-  --strand-postflop: #f0b344;
-  --strand-opponent: #f2626b;
-  --strand-self:     #4dd4d4;
+  --strand-decisions: #f0b344;
+  --strand-maths:     #35c48a;
+  --strand-reading:   #4da3ff;
+  --strand-table:     #b07cf0;
+  --strand-opponent:  #f2626b;
+  --strand-self:      #4dd4d4;
 
   --card-face:     #f7f9fc;
   --card-red:      #d4353f;

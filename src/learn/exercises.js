@@ -37,6 +37,7 @@ import {
   handLabel, parseRange, rangeHitBreakdown, rangeSize, sampleFromRange,
 } from '../engine/ranges.js';
 import { POSITIONS, POSITION_INFO, RFI, RFI_REASONING, VS_RFI } from '../engine/preflop.js';
+import { DECISION_GENERATORS } from './drills-decisions.js';
 
 /* ------------------------------------------------------------------ *
  * Small builders
@@ -127,7 +128,98 @@ const POT_SIZES = [
  * Generators
  * ------------------------------------------------------------------ */
 
+/**
+ * Difficulty tier for every generator, 1 (trivial) to 5 (hard).
+ *
+ * Kept as a lookup rather than a field on each generator so the whole
+ * progression can be read and retuned in one place. The session builder uses
+ * it to hold the learner near 75% accuracy: comfortably right often enough to
+ * stay motivated, wrong often enough to be learning something.
+ *
+ * Tier 1 is rules-level material — naming hands, reading notation. It is
+ * excluded from the main path entirely and appears only as a warm-up for
+ * someone who is getting it wrong, because a learner who knows the rules finds
+ * it patronising and a learner who does not will be shown it anyway.
+ */
+export const DIFFICULTY = {
+  // 1 — rules and vocabulary. Deliberately excluded from the path: a learner
+  // who knows the rules finds these patronising, and one who does not will meet
+  // them as warm-ups the moment they get something wrong.
+  'read-notation': 1,
+  'name-your-hand': 1,
+  'who-wins': 1,
+  'best-five': 1,
+
+  // 2 — the raw materials of a decision. Counting, not trivia.
+  'unseen-count': 2,
+  'combo-count': 2,
+  'position-compare': 2,
+  'find-the-nuts': 2,
+  'flop-texture': 2,
+  'spot-draws': 2,
+  'outs-to-percent': 2,
+  'bet-size-price': 2,
+  'ev-of-folding': 2,
+  'decision-vs-result': 2,
+  'blocker-count': 2,
+  'open-or-fold': 2,
+  'open-sizing': 2,
+  'bankroll-check': 2,
+  'tilt-check': 2,
+
+  // 3 — a single decision with the numbers supplied.
+  'outs-chain': 3,
+  'pot-odds-chain': 3,
+  'ev-of-call': 3,
+  'ev-call-chain': 3,
+  'call-or-fold': 3,
+  'can-worse-call': 3,
+  'bluff-break-even': 3,
+  'river-value': 3,
+  'spr-plan': 3,
+  'range-hit-rate': 3,
+  'player-type': 3,
+  'table-size-effect': 3,
+  'multiway-equity': 3,
+  'bb-defence': 3,
+
+  // 4 — a decision where the numbers must be produced first.
+  'bet-or-check-ev': 4,
+  'semibluff-ev': 4,
+  'choose-bet-size': 4,
+  'raise-or-call': 4,
+  'sizing-choice': 4,
+  'cbet-decision': 4,
+  'range-advantage': 4,
+  'mdf-chain': 4,
+  'implied-odds-chain': 4,
+  'equity-vs-range': 4,
+  'build-range': 4,
+  'multiway-decision': 4,
+  'bluff-selection': 4,
+
+  // 5 — the full decision, or one where the obvious answer is wrong.
+  'fold-call-raise': 5,
+  'raise-sizing': 5,
+  'river-call-combos': 5,
+  'reverse-implied': 5,
+  'narrow-range': 5,
+};
+
+export function difficultyOf(generatorId) {
+  return DIFFICULTY[generatorId] ?? 3;
+}
+
+/** Generators at or below a difficulty ceiling, excluding rules-level filler. */
+export function generatorsUpTo(maxDifficulty, { includeBasics = false } = {}) {
+  return Object.keys(GENERATORS).filter((id) => {
+    const d = difficultyOf(id);
+    return d <= maxDifficulty && (includeBasics || d > 1);
+  });
+}
+
 export const GENERATORS = {
+  ...DECISION_GENERATORS,
 
   /* ---------------------------------------------------------------- *
    * Reading
@@ -402,7 +494,7 @@ export const GENERATORS = {
 
   /** Pot odds as a fraction of the final pot. */
   'pot-odds-chain': (rng, params = {}) => {
-    const pot = params.pot || pick(rng, [20, 30, 40, 50, 60, 80, 100, 120]);
+    const pot = params.pot || pick(rng, [6, 8, 10, 12, 15, 18, 22, 28]);
     const sizing = pick(rng, POT_SIZES);
     const bet = Math.round(pot * sizing.fraction);
     const potBeforeCall = pot + bet;
@@ -467,7 +559,7 @@ export const GENERATORS = {
     const villain = dealVillainAhead(rng, hole, board);
     const outs = countOuts(hole, villain, board);
     const eq = exactEquity(hole, villain, board);
-    const pot = pick(rng, [20, 30, 40, 60, 80]);
+    const pot = pick(rng, [6, 9, 12, 16, 22]);
     const sizing = pick(rng, POT_SIZES);
     const bet = Math.round(pot * sizing.fraction);
     const price = bet / (pot + 2 * bet);
@@ -513,7 +605,7 @@ export const GENERATORS = {
 
   /** EV in chips, so "correct" stops being abstract. */
   'ev-of-call': (rng) => {
-    const pot = pick(rng, [40, 60, 80, 100]);
+    const pot = pick(rng, [8, 12, 18, 24]);
     const bet = Math.round(pot * pick(rng, [0.5, 0.75, 1]));
     const equityPct = 15 + randomInt(rng, 45);
     const eq = equityPct / 100;
@@ -796,7 +888,7 @@ export const GENERATORS = {
 
   /** Minimum defence frequency, derived from the bluff maths. */
   'mdf-chain': (rng) => {
-    const pot = pick(rng, [20, 40, 60, 100]);
+    const pot = pick(rng, [6, 10, 16, 24]);
     const sizing = pick(rng, POT_SIZES);
     const bet = Math.round(pot * sizing.fraction);
     const m = minimumDefenceFrequency(pot, bet);
@@ -924,7 +1016,7 @@ export const GENERATORS = {
     const { hole, board } = dealWithDraw(rng, 'gutshot');
     const villain = dealVillainAhead(rng, hole, board);
     const eq = exactEquity(hole, villain, board);
-    const pot = pick(rng, [20, 30, 40]);
+    const pot = pick(rng, [8, 12, 18]);
     const bet = Math.round(pot * 0.5);
     const price = bet / (pot + 2 * bet);
     const extra = pick(rng, [30, 50, 80]);

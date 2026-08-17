@@ -17,7 +17,7 @@
  */
 
 import { LESSONS, LEVELS } from './curriculum/index.js';
-import { GENERATORS, generate, questionCount } from './exercises.js';
+import { GENERATORS, difficultyOf, generate, questionCount } from './exercises.js';
 import { SKILLS } from './skills.js';
 import { dueSkills, isDue, strength } from './srs.js';
 
@@ -134,6 +134,7 @@ export function nextLesson(progress) {
  */
 export function buildSession(progress, budgetMinutes = 30, now = Date.now(), seedBase = now) {
   const records = progress.skills || {};
+  const ceiling = progress.ceiling ?? 3;
   const items = [];
   let spent = 0;
   let seed = seedBase >>> 0;
@@ -145,12 +146,12 @@ export function buildSession(progress, budgetMinutes = 30, now = Date.now(), see
   };
 
   // --- 1. Reviews that are due ---------------------------------------------
-  const due = dueSkills(records, now).filter((r) => generatorsFor(r.skill).length);
+  const due = dueSkills(records, now).filter((r) => generatorsFor(r.skill, ceiling).length);
   const reviewBudget = budgetMinutes * (progress.completedLessons ? 0.4 : 0);
 
   for (const record of due) {
     if (spent >= reviewBudget) break;
-    const gens = generatorsFor(record.skill);
+    const gens = generatorsFor(record.skill, ceiling);
     if (!gens.length) continue;
     const gen = gens[nextSeed() % gens.length];
     const exercise = generate(gen, nextSeed());
@@ -206,12 +207,12 @@ export function buildSession(progress, budgetMinutes = 30, now = Date.now(), see
   }
 
   const practicable = SKILLS
-    .filter((s) => poolIds.has(s.id) && generatorsFor(s.id).length)
+    .filter((s) => poolIds.has(s.id) && generatorsFor(s.id, ceiling).length)
     .sort((a, b) => strength(records[a.id], now) - strength(records[b.id], now));
 
   for (let guard = 0; spent < budgetMinutes && practicable.length && guard < 40; guard++) {
     const skill = practicable[guard % Math.min(practicable.length, 5)];
-    const gens = generatorsFor(skill.id);
+    const gens = generatorsFor(skill.id, ceiling);
     const exercise = generate(gens[nextSeed() % gens.length], nextSeed());
     push(
       { type: 'practice', skill: skill.id, exercise },
@@ -226,6 +227,7 @@ export function buildSession(progress, budgetMinutes = 30, now = Date.now(), see
     lesson,
     reviewCount: items.filter((i) => i.type === 'review').length,
     practiceCount: items.filter((i) => i.type === 'practice').length,
+    ceiling,
   };
 }
 
@@ -254,8 +256,26 @@ const GENERATOR_SKILLS = (() => {
   return index;
 })();
 
-export function generatorsFor(skillId) {
-  return GENERATOR_SKILLS[skillId] || [];
+/**
+ * Generators that train a skill, optionally capped at a difficulty ceiling.
+ *
+ * Tier 1 is excluded unless nothing else is available for the skill: rules-level
+ * drills are for someone who is actually getting the rules wrong, not for
+ * padding a session. If the ceiling filters everything out, the easiest
+ * available generator is returned rather than nothing, so a skill never becomes
+ * undrillable.
+ */
+export function generatorsFor(skillId, ceiling = 5) {
+  const all = GENERATOR_SKILLS[skillId] || [];
+  if (!all.length) return all;
+
+  const onPath = all.filter((id) => difficultyOf(id) > 1);
+  const pool = onPath.length ? onPath : all;
+  const capped = pool.filter((id) => difficultyOf(id) <= ceiling);
+  if (capped.length) return capped;
+
+  const easiest = Math.min(...pool.map(difficultyOf));
+  return pool.filter((id) => difficultyOf(id) === easiest);
 }
 
 /** Skills with no drill coverage, so gaps surface in tests rather than in use. */

@@ -25,6 +25,12 @@ export function createProfile(now = Date.now()) {
     version: 1,
     createdAt: now,
     dailyGoalMinutes: 30,
+    tableSize: 9,
+    // Difficulty ceiling, 2..5. Starts at 3 rather than 2 because this course
+    // assumes a learner who already knows the rules; rules-level drills (tier 1)
+    // are never on the path at all.
+    ceiling: 3,
+    recent: [],
     xp: 0,
     streak: 0,
     longestStreak: 0,
@@ -164,6 +170,36 @@ export function courseDay(profile) {
  * Recording results
  * ------------------------------------------------------------------ */
 
+/**
+ * Adaptive difficulty.
+ *
+ * The target is roughly 75% accuracy over the last 20 questions: comfortably
+ * right often enough to stay motivated, wrong often enough to be learning. Too
+ * easy is a real failure mode, not a pleasant one — a learner who gets
+ * everything right is being entertained rather than taught.
+ *
+ * The window is short so the ceiling responds within a session or two, and the
+ * bounds are 2 to 5 because tier 1 is rules material this course never uses.
+ */
+export const DIFFICULTY_WINDOW = 20;
+const TARGET_ACCURACY = 0.75;
+
+export function updateCeiling(profile) {
+  const recent = profile.recent || [];
+  if (recent.length < DIFFICULTY_WINDOW) return profile;
+
+  const accuracy = recent.reduce((a, b) => a + b, 0) / recent.length;
+  let ceiling = profile.ceiling ?? 3;
+
+  if (accuracy > TARGET_ACCURACY + 0.13 && ceiling < 5) ceiling += 1;
+  else if (accuracy < TARGET_ACCURACY - 0.20 && ceiling > 2) ceiling -= 1;
+  else return profile;
+
+  // Reset the window after a change so the next adjustment judges the new tier
+  // rather than re-reacting to performance at the old one.
+  return { ...profile, ceiling, recent: [] };
+}
+
 /** Record one graded question. */
 export function recordAnswer(profile, skillId, correct, now = Date.now()) {
   const next = { ...profile, skills: { ...profile.skills } };
@@ -174,7 +210,70 @@ export function recordAnswer(profile, skillId, correct, now = Date.now()) {
     correct: (profile.stats?.correct || 0) + (correct ? 1 : 0),
   };
   next.xp = (profile.xp || 0) + (correct ? 10 : 2);
-  return next;
+  next.recent = [...(profile.recent || []), correct ? 1 : 0].slice(-DIFFICULTY_WINDOW);
+  return updateCeiling(next);
+}
+
+/* ------------------------------------------------------------------ *
+ * Backup and restore
+ * ------------------------------------------------------------------ */
+
+/**
+ * Everything about a learner, as portable text.
+ *
+ * Progress lives in one browser's local storage, which is fine until the
+ * browser is cleared or the learner changes machine. A file they hold is the
+ * only form of persistence that is genuinely theirs, so export produces
+ * readable JSON rather than an opaque blob.
+ */
+export function exportProfile(profile) {
+  return JSON.stringify({
+    format: 'holdem-dojo-progress',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    profile,
+  }, null, 2);
+}
+
+export function suggestedFilename(profile, now = new Date()) {
+  const date = now.toISOString().slice(0, 10);
+  return `holdem-dojo-day${courseDay(profile)}-${date}.json`;
+}
+
+/**
+ * Restore from exported text.
+ *
+ * Returns `{ profile }` or `{ error }` rather than throwing, because this runs
+ * on text a person pasted and a stack trace is not a useful answer to "that
+ * file was the wrong one".
+ */
+export function importProfile(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { error: 'That does not look like a backup file — it is not valid JSON.' };
+  }
+
+  const candidate = parsed?.profile ?? parsed;
+  if (!candidate || typeof candidate !== 'object') {
+    return { error: 'That file does not contain a saved profile.' };
+  }
+  if (parsed?.format && parsed.format !== 'holdem-dojo-progress') {
+    return { error: `That backup is from a different app (${parsed.format}).` };
+  }
+  if (!candidate.skills || typeof candidate.skills !== 'object') {
+    return { error: 'That backup is missing its skill history, so it cannot be restored.' };
+  }
+
+  const restored = migrate(candidate);
+  const lessons = Object.keys(restored.completedLessons || {}).length;
+  return {
+    profile: restored,
+    summary: `Restored ${lessons} completed lesson${lessons === 1 ? '' : 's'}, `
+      + `${Object.keys(restored.skills).length} tracked skills, `
+      + `${restored.xp || 0} XP and a ${restored.streak || 0} day streak.`,
+  };
 }
 
 /** Record the outcome of a whole practice batch for one skill. */

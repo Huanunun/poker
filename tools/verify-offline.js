@@ -73,15 +73,28 @@ for (let i = 0; i < 260; i++) {
     continue;
   }
   const option = page.locator('.option:not([disabled])');
+  const numeric = page.locator('.numeric-input input:not([disabled])');
+  const slider = page.locator('.slider-wrap input:not([disabled])');
+  const cards = page.locator('.pcard.selectable');
+  const gridCell = page.locator('.range-cell:not([disabled])');
+
   if (await option.first().isVisible().catch(() => false)) {
     await option.first().click();
     answered++;
+  } else if (await numeric.first().isVisible().catch(() => false)) {
+    await numeric.first().fill('47');
+    answered++;
+  } else if (await slider.first().isVisible().catch(() => false)) {
+    await slider.first().press('ArrowRight');
+    answered++;
+  } else if (await cards.count() > 0) {
+    for (let n = 0; n < 5; n++) await cards.nth(n).click();
+    answered++;
+  } else if (await gridCell.first().isVisible().catch(() => false)) {
+    for (let n = 0; n < 6; n++) await gridCell.nth(n * 14).click();
+    answered++;
   } else {
-    const numeric = page.locator('.numeric-input input:not([disabled])');
-    if (await numeric.first().isVisible().catch(() => false)) {
-      await numeric.first().fill('47');
-      answered++;
-    } else break;
+    break;
   }
   const check = page.locator('button', { hasText: /^Check$/ });
   if (await check.first().isVisible().catch(() => false)) {

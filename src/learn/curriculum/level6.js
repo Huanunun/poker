@@ -1,216 +1,232 @@
 /**
- * Level 6 — Mastery and independence. Roughly days 321 to 365 and beyond.
+ * Level 6 — The full table. Roughly days 281 to 365.
  *
- * The goal of this level is to make the course unnecessary. A learner who
- * finishes should be able to identify their own leaks, design their own drills,
- * and keep improving without anything supplying the next lesson.
- *
- * Everything here is a habit rather than a fact, which is why the lessons are
- * shorter and the practice is longer.
+ * Everything so far has been implicitly heads-up. Real cash games are six to
+ * ten handed, pots go multiway, and every decision has to be made in about five
+ * seconds. This level covers all three, and ends by handing the learner the
+ * study loop so the course makes itself unnecessary.
  */
 
 export const LEVEL_6 = {
   level: 6,
-  name: 'Independence',
-  subtitle: 'Running your own improvement',
-  promise: 'Leave with a study process you can run for the rest of your poker life.',
+  name: 'The Full Table',
+  subtitle: 'Six to ten players, at speed',
+  promise: 'Make these decisions in five seconds at a real table, and keep improving without this app.',
   lessons: [
     {
       id: 'l6-01',
-      unit: 'Reviewing',
+      unit: 'Table size',
+      title: 'Under the gun is not one seat',
+      skill: 'position',
+      minutes: 25,
+      concepts: [
+        {
+          title: 'The same seat name means different things',
+          body: 'At a 6-handed table, under the gun has four players behind. At a 9-handed table it has seven. The same two cards are a comfortable open in one and a clear fold in the other.\n\nPlaying a full-ring game with 6-max ranges is one of the most common and expensive mistakes there is, and it is entirely avoidable by asking one question: how many people still have to act?',
+        },
+        {
+          title: 'The rule that generates every chart',
+          body: 'Count the players behind you. That number, more than anything about your cards, decides how strong your hand needs to be.\n\nYou do not need eight memorised ranges. You need one shape that widens smoothly as the players behind you disappear.',
+        },
+      ],
+      drills: [{ gen: 'table-size-effect', count: 4 }],
+      takeaway: 'Count the players behind you. That number sets how strong your hand must be.',
+    },
+    {
+      id: 'l6-02',
+      unit: 'Table size',
+      title: 'Where the money comes from at a full table',
+      skill: 'position',
+      minutes: 25,
+      concepts: [
+        {
+          title: 'Late position and the blinds',
+          body: 'At a 9 or 10-handed table you will fold roughly 80% of your hands, and most of your profit comes from the button and cutoff, plus defending your big blind at the right frequency.\n\nThat is not a boring style, it is where the edge actually is. The early seats are a cost of doing business.',
+        },
+      ],
+      drills: [{ gen: 'open-or-fold', count: 3 }, { gen: 'open-sizing', count: 2 }, { gen: 'bb-defence', count: 1 }],
+      takeaway: 'Full ring: fold most hands, make money on the button and in the big blind.',
+    },
+    {
+      id: 'l6-03',
+      unit: 'Multiway',
+      title: 'Three players changes the arithmetic',
+      skill: 'multiway',
+      minutes: 30,
+      concepts: [
+        {
+          title: 'Everyone has to fold, and they will not',
+          body: 'One opponent misses the flop about two thirds of the time. Three opponents all missing happens closer to a quarter of the time.\n\nSo bluffing multiway is close to hopeless, and thin value bets stop working because someone in there has something real. Multiway pots are for strong hands and draws, not for creativity.',
+        },
+        {
+          title: 'Value gets better, bluffs die',
+          body: 'The compensation is that when you do have a big hand, there are more people to pay you. Multiway is where value betting earns the most and where bluffing earns the least.\n\nThe adjustment is simple and mechanical: narrower, harder, and almost no bluffs.',
+        },
+      ],
+      drills: [{ gen: 'multiway-decision', count: 3 }, { gen: 'multiway-equity', count: 2 }],
+      takeaway: 'Multiway: value bet narrower and bigger, and bluff almost never.',
+    },
+    {
+      id: 'l6-04',
+      unit: 'Multiway',
+      title: 'Pot odds with several players in',
+      skill: 'multiway',
+      minutes: 25,
+      concepts: [
+        {
+          title: 'The price improves, the requirement rises',
+          body: 'More callers means a bigger pot and a better price on your call. It also means more players who might have you beaten, so the equity you need against the *field* is higher than against any one of them.\n\nThe practical effect: drawing hands do well multiway because the price is good and their draw beats everyone when it hits. Marginal made hands do badly, because the good price does not compensate for having to beat four people.',
+        },
+      ],
+      drills: [{ gen: 'multiway-equity', count: 3 }, { gen: 'call-or-fold', count: 2 }],
+      takeaway: 'Multiway improves your price and raises the bar. Draws gain, weak pairs lose.',
+    },
+    {
+      id: 'l6-05',
+      unit: 'At speed',
+      title: 'The five-second version',
+      skill: 'decision-making',
+      minutes: 30,
+      concepts: [
+        {
+          title: 'What you actually run at the table',
+          body: 'You will not compute EV in real time. You run a compressed version: What is the size, so what is my price? What do I have, roughly what is my equity? Is equity bigger than price? Would raising fold anything out?\n\nFour questions, a few seconds. The full arithmetic you have been practising is what makes the fast version accurate — you are not guessing, you are recognising numbers you have derived a hundred times.',
+        },
+        {
+          title: 'Anchors instead of calculations',
+          body: 'Flush draw on the flop, one card: about 19%. Both cards: about 35%. Open-ender: 17% and 32%. Gutshot: 9% and 16%. Every standard bet needs between 20% and 33%.\n\nYou derived all of these. Now they work as instant recognition, and the derivation is there when a spot is unusual.',
+        },
+      ],
+      drills: [{ gen: 'call-or-fold', count: 3 }, { gen: 'fold-call-raise', count: 2 }],
+      takeaway: 'Size → price. Hand → equity. Compare. Consider a raise. Four questions, five seconds.',
+    },
+    {
+      id: 'l6-06',
+      unit: 'At speed',
+      title: 'Deciding before it is your turn',
+      skill: 'decision-making',
+      minutes: 25,
+      concepts: [
+        {
+          title: 'Use the time you are given',
+          body: 'Most of a hand happens while you are waiting. Work out the price, name the likely hands, decide what you will do if they bet small and what you will do if they bet big — before the action reaches you.\n\nThis alone removes most time pressure, and it stops the tell of taking a long time only in difficult spots.',
+        },
+      ],
+      drills: [{ gen: 'fold-call-raise', count: 2 }, { gen: 'river-call-combos', count: 2 }],
+      takeaway: 'Decide your responses before the action reaches you. It removes time pressure and a tell.',
+    },
+    {
+      id: 'l6-07',
+      unit: 'Staying in the game',
+      title: 'Bankroll and stakes',
+      skill: 'bankroll',
+      minutes: 25,
+      concepts: [
+        {
+          title: 'Enough buy-ins to outlast the noise',
+          body: 'Thirty buy-ins is the usual minimum for cash games, and more while you are learning. This is not caution for its own sake — it is what lets a real edge survive an ordinary bad run.\n\nA winning player with too small a bankroll goes broke. The edge was real; the sample was too short.',
+        },
+        {
+          title: 'Moving up and down',
+          body: 'Move up when you have the bankroll and are genuinely beating the current level over a real sample. Both, not one.\n\nMove down mechanically when the bankroll drops below the threshold. It is a rule, not a judgement, and the players who follow it are the ones still playing years later.',
+        },
+      ],
+      drills: [{ gen: 'bankroll-check', count: 3 }, { gen: 'decision-vs-result', count: 2 }],
+      takeaway: 'Thirty buy-ins minimum. Move up on bankroll plus proven edge; move down mechanically.',
+    },
+    {
+      id: 'l6-08',
+      unit: 'Staying in the game',
+      title: 'Tilt, and the rule you write in advance',
+      skill: 'tilt',
+      minutes: 25,
+      concepts: [
+        {
+          title: 'It does not always feel like anger',
+          body: 'Tilt is any state where emotion rather than reasoning is choosing your actions. Frustration after a bad beat is the obvious form. Boredom while card dead is tilt. Overconfidence while winning is tilt.\n\nThe common signature is a reason that sounds like strategy but arrived after the feeling.',
+        },
+        {
+          title: 'Decide while calm',
+          body: 'You will not judge well whether to keep playing while tilted, so decide now: a specific trigger and a specific response. "If I lose two big pots in a row, I stand up for ten minutes."\n\nWritten down, followed automatically, no judgement required in the moment.',
+        },
+      ],
+      drills: [{ gen: 'tilt-check', count: 3 }, { gen: 'decision-vs-result', count: 2 }],
+      takeaway: 'Tilt is emotion choosing your actions. Write the stop rule while calm.',
+    },
+    {
+      id: 'l6-09',
+      unit: 'Your own loop',
       title: 'Reviewing hands without hindsight',
       skill: 'review-process',
       minutes: 30,
       concepts: [
         {
           title: 'Judge with the information you had',
-          body: 'The point of review is not to find out whether you won. You know that. It is to ask whether the decision was right given what you knew at the time.\n\nSo review with their cards hidden first. Work out what you should have done, and only then look. Reviewing with the answer visible teaches you to recognise outcomes, not decisions.',
+          body: 'Review with their cards hidden first. Work out what you should have done, then look.\n\nReviewing with the answer visible teaches you to recognise outcomes rather than decisions, which is the exact habit that stops people improving.',
         },
         {
           title: 'Review the ordinary hands',
-          body: 'The instinct is to review the disasters. But big losses are usually either obvious mistakes or plain bad luck, and neither teaches much.\n\nThe money is in the routine spots you play on autopilot dozens of times a session. A small error there, repeated, costs more than one spectacular blow-up.',
+          body: 'The instinct is to review disasters, but big losses are usually either obvious mistakes or plain bad luck, and neither teaches much.\n\nThe money is in the routine spots you play on autopilot dozens of times a session. A small error there, repeated, costs far more than one spectacular blow-up.',
         },
       ],
-      drills: [{ gen: 'decision-vs-result', count: 3 }, { gen: 'call-or-fold', count: 2 }],
+      drills: [{ gen: 'fold-call-raise', count: 2 }, { gen: 'decision-vs-result', count: 2 }],
       takeaway: 'Review with their cards hidden, and review ordinary hands, not disasters.',
     },
     {
-      id: 'l6-02',
-      unit: 'Reviewing',
-      title: 'Finding your own leaks',
-      skill: 'review-process',
-      minutes: 30,
-      concepts: [
-        {
-          title: 'Look for the repeated shape',
-          body: 'One bad call is noise. The same bad call in the same spot five times is a leak, and it has a cause you can name — usually a wrong assumption about how often someone bluffs, or a hand you have overvalued for years.\n\nTag your uncomfortable decisions as you play. Once a week, look for the shape that repeats.',
-        },
-        {
-          title: 'Fix one at a time',
-          body: 'Trying to fix five leaks at once fixes none. Pick the most frequent one, work only on it for a week, and let the others wait. Frequency matters more than severity: a small error in a common spot outweighs a large error in a rare one.',
-        },
-      ],
-      drills: [{ gen: 'call-or-fold', count: 2 }, { gen: 'river-value', count: 2 }, { gen: 'mdf-chain', count: 1 }],
-      takeaway: 'Tag uncomfortable spots, look weekly for the repeating shape, fix one at a time.',
-    },
-    {
-      id: 'l6-03',
-      unit: 'Reviewing',
-      title: 'Turning a hand into a question',
-      skill: 'review-process',
-      minutes: 25,
-      concepts: [
-        {
-          title: 'A good review question is answerable',
-          body: '"Did I play this well?" is not answerable. "Against this player\'s range, how many combinations beat me on the river, and what price was I getting?" is.\n\nWhen a hand bothers you, convert it into a specific question with a number for an answer. Then answer it properly, with the tools you have.',
-        },
-      ],
-      drills: [{ gen: 'narrow-range', count: 2 }, { gen: 'blocker-count', count: 3 }],
-      takeaway: 'Convert vague discomfort into a specific question with a numeric answer.',
-    },
-    {
-      id: 'l6-04',
-      unit: 'Study design',
-      title: 'Designing your own drills',
+      id: 'l6-10',
+      unit: 'Your own loop',
+      title: 'Running your own improvement',
       skill: 'study-loop',
       minutes: 30,
       concepts: [
         {
-          title: 'Practise the thing, not around the thing',
-          body: 'If your leak is over-folding the big blind, the drill is big blind defence spots, repeatedly, until the correct action feels obvious. Not reading about it, not watching videos about it: doing it.\n\nA drill needs three properties: it isolates one decision, it gives immediate feedback, and it can be repeated with variation. That is the whole design.',
+          title: 'The loop',
+          body: 'Play. Notice discomfort. Turn it into a specific question with a numeric answer. Answer it in the sandbox. Drill it. Return to playing.\n\nThat is the whole method, and it is the same at every level from your first session to your ten-thousandth. If that loop is running, you no longer need this course — which was always the point.',
         },
         {
-          title: 'Use the sandbox',
-          body: 'The equity sandbox in this app will answer any specific question you can pose to it. When a hand puzzles you, set it up, change one variable at a time, and watch what happens to the numbers. Curiosity plus a calculator is a complete study method.',
-        },
-      ],
-      drills: [{ gen: 'equity-vs-range', count: 3 }, { gen: 'call-or-fold', count: 2 }],
-      takeaway: 'A drill isolates one decision, gives instant feedback, and repeats with variation.',
-    },
-    {
-      id: 'l6-05',
-      unit: 'Study design',
-      title: 'Spaced repetition, applied to poker',
-      skill: 'study-loop',
-      minutes: 25,
-      concepts: [
-        {
-          title: 'Revisit just before you would forget',
-          body: 'This course has been scheduling your reviews all along, pushing each skill out further as you get it right and pulling it closer when you do not.\n\nYou can run the same process yourself: keep a short list of spots you have got wrong, and revisit each one a day later, then a week, then a month. Anything you get wrong resets to the start.',
-        },
-      ],
-      drills: [{ gen: 'outs-to-percent', count: 3 }, { gen: 'bet-size-price', count: 3 }],
-      takeaway: 'Revisit at growing intervals; reset to the start whenever you get one wrong.',
-    },
-    {
-      id: 'l6-06',
-      unit: 'Study design',
-      title: 'Balancing play and study',
-      skill: 'study-loop',
-      minutes: 20,
-      concepts: [
-        {
-          title: 'Neither alone works',
-          body: 'Playing without studying grinds the same errors deeper. Studying without playing builds knowledge you cannot access under pressure.\n\nA reasonable ratio while improving is about three parts play to one part study, with the study aimed at whatever the play just exposed.',
-        },
-      ],
-      drills: [{ gen: 'decision-vs-result', count: 2 }, { gen: 'spr-plan', count: 2 }],
-      takeaway: 'Roughly three parts play to one part study, and let play choose the study topic.',
-    },
-    {
-      id: 'l6-07',
-      unit: 'Integration',
-      title: 'Playing a full session well',
-      skill: 'study-loop',
-      minutes: 35,
-      concepts: [
-        {
-          title: 'Before, during, after',
-          body: 'Before: check your state, pick a table, set a stop rule. During: play your baseline, gather reads, deviate consciously, watch your own tilt. After: tag two or three hands and stop.\n\nThe after step is the one everyone skips, and it is the one that turns hours played into skill gained.',
+          title: 'Use the sandbox as your calculator',
+          body: 'When a hand puzzles you, set it up and change one thing at a time. What if they had a flush draw instead? What if the pot were twice as big? Watching the number move is how intuition gets built.\n\nCuriosity plus a calculator is a complete study method.',
         },
       ],
       drills: [
-        { gen: 'player-type', count: 2 },
-        { gen: 'cbet-decision', count: 2 },
-        { gen: 'river-value', count: 2 },
-        { gen: 'tilt-check', count: 1 },
-      ],
-      takeaway: 'Before, during, after. The after step is what converts play into improvement.',
-    },
-    {
-      id: 'l6-08',
-      unit: 'Integration',
-      title: 'Moving up in stakes',
-      skill: 'bankroll',
-      minutes: 25,
-      concepts: [
-        {
-          title: 'Two conditions, both required',
-          body: 'Move up when you have the bankroll for the next level and you are genuinely beating the current one over a real sample. Both, not one.\n\nMoving up because you are bored, or because you are down and want to win it back faster, is the most reliable way to lose everything you have built.',
-        },
-        {
-          title: 'Moving down is not a failure',
-          body: 'If your bankroll drops below the threshold, drop a level. It is a mechanical rule, not a judgement on you, and the players who follow it are the ones who are still playing years later.',
-        },
-      ],
-      drills: [{ gen: 'bankroll-check', count: 4 }],
-      takeaway: 'Move up with bankroll and a proven edge. Move down mechanically, without ego.',
-    },
-    {
-      id: 'l6-09',
-      unit: 'Integration',
-      title: 'What mastery actually looks like',
-      skill: 'study-loop',
-      minutes: 25,
-      concepts: [
-        {
-          title: 'Not knowing everything',
-          body: 'A master is not someone who has memorised solver outputs. It is someone who reliably makes reasonable decisions quickly, notices when a spot is unusual, and knows what to do about the ones they get wrong.\n\nThe decisions look boring from outside. That is what competence looks like in a game of incomplete information.',
-        },
-        {
-          title: 'The loop never ends',
-          body: 'Play, notice discomfort, form a question, answer it, drill it, return to play. That is the whole method, and it is the same at every level from your first session to your ten-thousandth.\n\nIf you have that loop running, you no longer need this course. That was the point.',
-        },
-      ],
-      drills: [
-        { gen: 'call-or-fold', count: 2 },
-        { gen: 'narrow-range', count: 2 },
-        { gen: 'river-value', count: 2 },
+        { gen: 'fold-call-raise', count: 2 },
+        { gen: 'choose-bet-size', count: 2 },
+        { gen: 'river-call-combos', count: 1 },
       ],
       takeaway: 'Play, notice, question, answer, drill, return. The loop is the skill.',
     },
     {
-      id: 'l6-10',
-      unit: 'Integration',
+      id: 'l6-11',
+      unit: 'Your own loop',
       title: 'Final checkpoint',
-      skill: 'study-loop',
-      minutes: 45,
+      skill: 'decision-making',
+      minutes: 40,
       checkpoint: true,
       concepts: [
         {
-          title: 'The whole game, one last time',
-          body: 'This checkpoint samples everything: board reading, outs, pot odds, ranges, position, c-betting, defence, river decisions, opponent types, and your own discipline.\n\nWhatever it finds weak, it will schedule. Then keep going — the daily sessions continue past day 365, drawing from everything you have learned, forever.',
+          title: 'Everything, one last time',
+          body: 'This samples the whole course: pricing calls, choosing between betting and checking, sizing, raising, multiway adjustments, full-ring position, and your own discipline.\n\nWhatever it finds weak gets scheduled. Sessions continue past day 365, drawing from everything, indefinitely.',
         },
       ],
       drills: [
-        { gen: 'name-your-hand', count: 2 },
-        { gen: 'find-the-nuts', count: 1 },
+        { gen: 'ev-of-folding', count: 1 },
         { gen: 'outs-chain', count: 1 },
-        { gen: 'bet-size-price', count: 2 },
-        { gen: 'call-or-fold', count: 1 },
-        { gen: 'build-range', count: 1 },
-        { gen: 'bb-defence', count: 1 },
-        { gen: 'range-advantage', count: 2 },
-        { gen: 'cbet-decision', count: 1 },
-        { gen: 'mdf-chain', count: 1 },
-        { gen: 'river-value', count: 2 },
-        { gen: 'bluff-selection', count: 1 },
-        { gen: 'narrow-range', count: 1 },
-        { gen: 'player-type', count: 2 },
-        { gen: 'bankroll-check', count: 1 },
-        { gen: 'tilt-check', count: 1 },
+        { gen: 'bet-size-price', count: 1 },
+        { gen: 'ev-call-chain', count: 1 },
+        { gen: 'bet-or-check-ev', count: 1 },
+        { gen: 'bluff-break-even', count: 1 },
+        { gen: 'semibluff-ev', count: 1 },
+        { gen: 'choose-bet-size', count: 1 },
+        { gen: 'raise-or-call', count: 1 },
+        { gen: 'raise-sizing', count: 1 },
+        { gen: 'fold-call-raise', count: 2 },
+        { gen: 'river-call-combos', count: 1 },
+        { gen: 'open-sizing', count: 1 },
+        { gen: 'table-size-effect', count: 1 },
+        { gen: 'multiway-decision', count: 1 },
+        { gen: 'reverse-implied', count: 1 },
       ],
-      takeaway: 'You have the whole game and the loop to keep improving it. Go and play.',
+      takeaway: 'Five decisions, priced in chips, at a table of any size. Go and play.',
     },
   ],
 };

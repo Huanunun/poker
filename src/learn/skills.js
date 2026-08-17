@@ -12,10 +12,10 @@
  */
 
 export const STRANDS = {
+  decisions: { name: 'The five decisions', colour: 'strand-decisions' },
+  maths: { name: 'The maths behind them', colour: 'strand-maths' },
   reading: { name: 'Reading the board', colour: 'strand-reading' },
-  maths: { name: 'The maths', colour: 'strand-maths' },
-  preflop: { name: 'Before the flop', colour: 'strand-preflop' },
-  postflop: { name: 'After the flop', colour: 'strand-postflop' },
+  table: { name: 'Position and the table', colour: 'strand-table' },
   opponent: { name: 'Reading opponents', colour: 'strand-opponent' },
   self: { name: 'Playing yourself', colour: 'strand-self' },
 };
@@ -54,30 +54,46 @@ export const SKILLS = [
   { id: 'spr', name: 'Use stack-to-pot ratio', strand: 'maths', requires: ['pot-odds'], why: 'SPR decides before the flop whether one pair can be played for a stack.' },
 
   // --- Preflop -------------------------------------------------------------
-  { id: 'position', name: 'Value position correctly', strand: 'preflop', requires: ['card-notation'], why: 'Acting last is worth more than most of the card strength beginners chase.' },
-  { id: 'starting-hands', name: 'Judge a starting hand', strand: 'preflop', requires: ['position', 'hand-ranking'], why: 'Most losing players lose before the flop, one loose call at a time.' },
-  { id: 'range-grid', name: 'Think in the 169-hand grid', strand: 'preflop', requires: ['combinatorics', 'starting-hands'], why: 'Ranges, not hands. This is the shift that separates beginners from players.' },
-  { id: 'rfi', name: 'Open the right hands from each seat', strand: 'preflop', requires: ['range-grid', 'position'], why: 'Your opening range is the foundation every postflop decision rests on.' },
-  { id: 'blind-defence', name: 'Defend the big blind', strand: 'preflop', requires: ['rfi', 'pot-odds'], why: 'Over-folding the big blind quietly costs more than any other single leak.' },
-  { id: 'three-betting', name: 'Build a 3-bet range', strand: 'preflop', requires: ['rfi', 'blockers'], why: 'A range of only premiums is transparent and unprofitable.' },
-  { id: 'facing-three-bet', name: 'Respond to a 3-bet', strand: 'preflop', requires: ['three-betting', 'spr'], why: 'Most players either fold far too much here or call with hands that cannot continue.' },
-  { id: 'multiway', name: 'Adjust for multiway pots', strand: 'preflop', requires: ['starting-hands', 'equity-intuition'], why: 'Hand values change completely when three people see a flop.' },
+  { id: 'position', name: 'Value position correctly', strand: 'table', requires: ['card-notation'], why: 'Acting last is worth more than most of the card strength beginners chase.' },
+  { id: 'starting-hands', name: 'Judge a starting hand', strand: 'table', requires: ['position', 'hand-ranking'], why: 'Most losing players lose before the flop, one loose call at a time.' },
+  { id: 'range-grid', name: 'Think in the 169-hand grid', strand: 'table', requires: ['combinatorics', 'starting-hands'], why: 'Ranges, not hands. This is the shift that separates beginners from players.' },
+  { id: 'rfi', name: 'Open the right hands from each seat', strand: 'table', requires: ['range-grid', 'position'], why: 'Your opening range is the foundation every postflop decision rests on.' },
+  { id: 'blind-defence', name: 'Defend the big blind', strand: 'decisions', requires: ['rfi', 'pot-odds'], why: 'Over-folding the big blind quietly costs more than any other single leak.' },
+  { id: 'three-betting', name: 'Build a 3-bet range', strand: 'decisions', requires: ['rfi', 'blockers'], why: 'A range of only premiums is transparent and unprofitable.' },
+  { id: 'facing-three-bet', name: 'Respond to a 3-bet', strand: 'decisions', requires: ['three-betting', 'spr'], why: 'Most players either fold far too much here or call with hands that cannot continue.' },
+  { id: 'multiway', name: 'Adjust for multiway pots', strand: 'table', requires: ['starting-hands', 'equity-intuition'], why: 'Hand values change completely when three people see a flop.' },
+
+  // --- The five decisions --------------------------------------------------
+  //
+  // These are the spine of the course. Everything else exists to make these
+  // answerable: the maths strand supplies the inputs, and these turn the
+  // inputs into an action and a number of chips.
+  { id: 'decision-making', name: 'Price every action and pick the biggest', strand: 'decisions', requires: ['ev-basics'], why: 'Fold, call, raise are each worth some number of chips. The correct play is the largest number, and nothing else.' },
+  { id: 'bet-decision', name: 'Decide whether to bet or check', strand: 'decisions', requires: ['ev-basics'], why: 'Betting wins two ways and checking wins one. Beginners check far too often because they only count one of them.' },
+  { id: 'value-betting', name: 'Bet when worse hands can call', strand: 'decisions', requires: ['bet-decision'], why: 'Checking good hands on the river quietly costs more over a year than any bluff you get caught making.' },
+  { id: 'bluffing', name: 'Know how often a bluff must work', strand: 'decisions', requires: ['bet-decision'], why: 'A bluff is a price. If you cannot name the fold rate it needs, you are not bluffing, you are hoping.' },
+  { id: 'semi-bluffing', name: 'Bet draws for two ways to win', strand: 'decisions', requires: ['bluffing', 'outs-to-equity'], why: 'The single highest-value habit to build: aggression with draws beats passivity with identical cards.' },
+  { id: 'raise-decision', name: 'Choose between calling and raising', strand: 'decisions', requires: ['decision-making'], why: 'The same two cards can be a good call and a bad raise. Knowing which is which is most of postflop skill.' },
+  { id: 'raise-sizing', name: 'Size a raise', strand: 'decisions', requires: ['raise-decision', 'bet-sizing'], why: 'How much is a separate decision from whether, and it moves the money more than most players realise.' },
+  { id: 'preflop-sizing', name: 'Size an open, 3-bet and 4-bet', strand: 'decisions', requires: ['position'], why: 'Your opening size sets the size of every pot you play. Getting it wrong compounds all night.' },
+  { id: 'river-decisions', name: 'Decide rivers by counting combinations', strand: 'decisions', requires: ['combinatorics', 'pot-odds'], why: 'No cards left means no equity to estimate — only counting. It is the most solvable spot in poker and the one people guess at most.' },
+  { id: 'fold-discipline', name: 'Fold when the price lies', strand: 'decisions', requires: ['decision-making', 'implied-odds'], why: 'Pot odds price one street. Position and stack depth decide whether the real price is higher.' },
 
   // --- Postflop ------------------------------------------------------------
-  { id: 'range-advantage', name: 'Work out whose range the flop favours', strand: 'postflop', requires: ['texture', 'range-grid'], why: 'Whoever the board hits harder gets to do the betting.' },
-  { id: 'cbet', name: 'Continuation bet with a plan', strand: 'postflop', requires: ['range-advantage', 'break-even'], why: 'Betting every flop and betting no flops are both losing strategies.' },
-  { id: 'bet-sizing', name: 'Choose a bet size on purpose', strand: 'postflop', requires: ['break-even', 'cbet'], why: 'Size is a message. Sending the wrong one is free money for observant opponents.' },
-  { id: 'facing-bets', name: 'Defend against bets', strand: 'postflop', requires: ['pot-odds', 'equity-intuition'], why: 'Knowing your price turns agonising calls into arithmetic.' },
-  { id: 'mdf', name: 'Apply minimum defence frequency', strand: 'postflop', requires: ['facing-bets', 'break-even'], why: 'It tells you how much of your range you are allowed to fold before you become exploitable.' },
-  { id: 'turn-play', name: 'Plan the turn before you bet the flop', strand: 'postflop', requires: ['cbet', 'bet-sizing'], why: 'A flop bet with no turn plan is how stacks get lost on blank cards.' },
-  { id: 'river-value', name: 'Bet the river for value', strand: 'postflop', requires: ['turn-play', 'combinatorics'], why: 'Most players leave more money on the river than they lose anywhere else.' },
-  { id: 'river-bluff', name: 'Bluff the river with the right hands', strand: 'postflop', requires: ['river-value', 'blockers'], why: 'The best bluffs are the hands that block the calls, not the worst hands you happen to hold.' },
-  { id: 'polarisation', name: 'Recognise polarised and merged ranges', strand: 'postflop', requires: ['bet-sizing', 'river-value'], why: 'Big bets say something specific. Learn what, and you can read sizings for what they are.' },
-  { id: 'draw-play', name: 'Play draws aggressively', strand: 'postflop', requires: ['outs-to-equity', 'cbet'], why: 'Semi-bluffing wins pots two ways. Calling with draws wins one.' },
-  { id: 'pot-control', name: 'Control the pot with medium hands', strand: 'postflop', requires: ['spr', 'facing-bets'], why: 'Top pair is a good hand and a terrible reason to play a 200 big blind pot.' },
+  { id: 'range-advantage', name: 'Work out whose range the flop favours', strand: 'reading', requires: ['texture', 'range-grid'], why: 'Whoever the board hits harder gets to do the betting.' },
+  { id: 'cbet', name: 'Continuation bet with a plan', strand: 'decisions', requires: ['range-advantage', 'break-even'], why: 'Betting every flop and betting no flops are both losing strategies.' },
+  { id: 'bet-sizing', name: 'Choose a bet size on purpose', strand: 'decisions', requires: ['break-even', 'cbet'], why: 'Size is a message. Sending the wrong one is free money for observant opponents.' },
+  { id: 'facing-bets', name: 'Defend against bets', strand: 'decisions', requires: ['pot-odds', 'equity-intuition'], why: 'Knowing your price turns agonising calls into arithmetic.' },
+  { id: 'mdf', name: 'Apply minimum defence frequency', strand: 'decisions', requires: ['facing-bets', 'break-even'], why: 'It tells you how much of your range you are allowed to fold before you become exploitable.' },
+  { id: 'turn-play', name: 'Plan the turn before you bet the flop', strand: 'decisions', requires: ['cbet', 'bet-sizing'], why: 'A flop bet with no turn plan is how stacks get lost on blank cards.' },
+  { id: 'river-value', name: 'Bet the river for value', strand: 'decisions', requires: ['turn-play', 'combinatorics'], why: 'Most players leave more money on the river than they lose anywhere else.' },
+  { id: 'river-bluff', name: 'Bluff the river with the right hands', strand: 'decisions', requires: ['river-value', 'blockers'], why: 'The best bluffs are the hands that block the calls, not the worst hands you happen to hold.' },
+  { id: 'polarisation', name: 'Recognise polarised and merged ranges', strand: 'reading', requires: ['bet-sizing', 'river-value'], why: 'Big bets say something specific. Learn what, and you can read sizings for what they are.' },
+  { id: 'draw-play', name: 'Play draws aggressively', strand: 'decisions', requires: ['outs-to-equity', 'cbet'], why: 'Semi-bluffing wins pots two ways. Calling with draws wins one.' },
+  { id: 'pot-control', name: 'Control the pot with medium hands', strand: 'decisions', requires: ['spr', 'facing-bets'], why: 'Top pair is a good hand and a terrible reason to play a 200 big blind pot.' },
 
   // --- Opponent ------------------------------------------------------------
-  { id: 'hand-reading', name: 'Narrow a range street by street', strand: 'opponent', requires: ['range-grid', 'texture'], why: 'Every action they take removes hands. Hand reading is just subtraction done carefully.' },
+  { id: 'hand-reading', name: 'Narrow a range street by street', strand: 'reading', requires: ['range-grid', 'texture'], why: 'Every action they take removes hands. Hand reading is just subtraction done carefully.' },
   { id: 'player-types', name: 'Classify opponents quickly', strand: 'opponent', requires: ['position'], why: 'The correct play against a calling station is not the correct play against a solid regular.' },
   { id: 'exploits', name: 'Deviate to punish a tendency', strand: 'opponent', requires: ['player-types', 'mdf'], why: 'Balanced play is a safe default. Exploitation is where the money actually is.' },
   { id: 'bet-tells', name: 'Read sizing and timing patterns', strand: 'opponent', requires: ['polarisation', 'player-types'], why: 'Amateurs size their bets according to how strong they feel. That is a free window.' },

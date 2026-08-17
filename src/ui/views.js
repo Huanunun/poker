@@ -12,7 +12,8 @@ import { DAILY_GOALS, buildPlan, milestones, nextLesson } from '../learn/plan.js
 import { SKILLS, SKILL_BY_ID, STRANDS } from '../learn/skills.js';
 import { dueLabel, strength, strengthLabel } from '../learn/srs.js';
 import {
-  accuracy, courseDay, levelProgress, overallMastery, strandMastery, weakestSkills,
+  accuracy, courseDay, exportProfile, importProfile, levelProgress, overallMastery,
+  strandMastery, suggestedFilename, weakestSkills,
 } from '../learn/progress.js';
 import { parseCards, cardToString, makeRng } from '../engine/cards.js';
 import { equity } from '../engine/equity.js';
@@ -21,6 +22,20 @@ import { countOuts, draws, describeBoard, boardTexture } from '../engine/board.j
 import { potOdds, priceOfBet, minimumDefenceFrequency, ruleOfTwoAndFour, round } from '../engine/odds.js';
 import { equityVsRange, parseRange, rangeSize, handLabel, rangeToString } from '../engine/ranges.js';
 import { RFI, POSITION_INFO } from '../engine/preflop.js';
+
+/**
+ * How the adaptive difficulty tier reads to a learner.
+ *
+ * Shown because a course that silently got easier when you struggled would feel
+ * like it was not working. Naming the tier makes the adaptation legible, and
+ * makes moving up feel like the achievement it is.
+ */
+const DIFFICULTY_NAMES = {
+  2: 'Building',
+  3: 'Standard',
+  4: 'Sharp',
+  5: 'Hard',
+};
 
 /* ------------------------------------------------------------------ *
  * Today
@@ -44,8 +59,8 @@ export function todayView({ profile, onStart, onSetGoal }) {
 
   const strandValues = strandMastery(profile);
   root.append(el('div.tiles',
-    tile(profile.streak, profile.streak === 1 ? 'day streak' : 'day streak'),
-    tile(profile.xp, 'XP'),
+    tile(profile.streak, 'day streak'),
+    tile(DIFFICULTY_NAMES[profile.ceiling ?? 3], 'difficulty'),
     tile(pctText(overallMastery(profile)), 'mastery'),
     tile(profile.stats?.attempted ? pctText(accuracy(profile)) : '—', 'accuracy'),
   ));
@@ -84,9 +99,10 @@ function howItWorksPanel() {
   return el('div.card-panel',
     el('div.section-title', 'How this works'),
     paragraphs(
-      'Every complicated decision gets broken into steps small enough to answer one at a time. You will never be asked to apply a formula you have not just built yourself by counting.\n\n'
-      + 'Nothing is memorised. The shortcuts every poker book opens with — the rule of 2 and 4, the fixed price of a half-pot bet — are withheld until you have worked them out the long way often enough that they feel obvious.\n\n'
-      + 'Skills you get wrong come back tomorrow. Skills you get right come back in three days, then a week, then a month. You do not have to track any of this.',
+      'This course assumes you know the rules and cannot yet price a decision. So it starts at the maths — no hand rankings, no card notation — and every lesson works towards one of five questions: bet, check, call, raise, or fold, and how much.\n\n'
+      + 'Nothing is memorised. Those odds charts are impossible to hold in your head, and they should be: the goal here is to derive the number at the table in about five seconds, from counting. Shortcuts arrive only after you have worked them out the long way often enough that they feel obvious — and you learn where each one lies to you.\n\n'
+      + 'Cash games, six to ten players, 100 big blinds. No tournaments.\n\n'
+      + 'Skills you get wrong come back tomorrow; skills you get right come back in three days, then a week, then a month. If you find it too easy it gets harder on its own, and you never have to track any of this.',
     ),
   );
 }
@@ -183,7 +199,7 @@ function planPanel() {
  * Progress
  * ------------------------------------------------------------------ */
 
-export function progressView({ profile, onReset }) {
+export function progressView({ profile, onReset, onImport }) {
   const root = el('div.stack');
   const now = Date.now();
 
@@ -237,9 +253,11 @@ export function progressView({ profile, onReset }) {
     ));
   }
 
+  root.append(backupPanel({ profile, onImport }));
+
   root.append(el('div.card-panel',
-    el('div.section-title', 'Your data'),
-    el('p.muted', 'Everything lives in this browser and is never sent anywhere. Clearing site data removes it.'),
+    el('div.section-title', 'Start over'),
+    el('p.muted', 'Erasing is permanent. Save a backup first if there is any chance you want this back.'),
     el('button.btn', {
       style: { marginTop: '.6rem' },
       onClick: () => {
@@ -249,6 +267,119 @@ export function progressView({ profile, onReset }) {
   ));
 
   return root;
+}
+
+/**
+ * Backup and restore.
+ *
+ * Progress lives in one browser's local storage, which is fine until that
+ * browser is cleared. A file the learner holds is the only persistence that is
+ * really theirs, so this offers a download and — because a sandboxed page
+ * cannot always start a download — a copyable text box that always works.
+ */
+function backupPanel({ profile, onImport }) {
+  const status = el('div');
+  const panel = el('div.card-panel',
+    el('div.section-title', 'Save your progress'),
+    el('p.muted', 'Everything is stored in this browser and never sent anywhere. Save a backup file to move your progress to another browser or machine, or to keep it safe.'),
+  );
+
+  const downloadBtn = el('button.btn.btn-primary', {
+    onClick: () => {
+      const text = exportProfile(profile);
+      const name = suggestedFilename(profile);
+      try {
+        const blob = new Blob([text], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = el('a', { href: url, download: name });
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showStatus(`Saved as ${name}. Keep it somewhere you will find it again.`, 'correct');
+      } catch {
+        showStatus('This browser blocked the download. Use "Show backup text" below and copy it instead.', 'neutral');
+      }
+    },
+  }, 'Download backup file');
+
+  const showTextBtn = el('button.btn', {
+    onClick: () => {
+      const box = el('textarea', {
+        readonly: true,
+        rows: '8',
+        style: {
+          width: '100%', marginTop: '.6rem', fontFamily: 'var(--mono)', fontSize: '.75rem',
+          background: 'var(--bg-sunken)', color: 'var(--text)',
+          border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '.6rem',
+        },
+      }, exportProfile(profile));
+      status.replaceChildren(
+        el('p.faint', { style: { marginTop: '.6rem' } }, 'Select all of this and copy it somewhere safe.'),
+        box,
+      );
+      box.focus();
+      box.select();
+    },
+  }, 'Show backup text');
+
+  const fileInput = el('input', {
+    type: 'file',
+    accept: 'application/json,.json',
+    style: { display: 'none' },
+    onChange: async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      applyImport(await file.text());
+      event.target.value = '';
+    },
+  });
+
+  const restoreBtn = el('button.btn', { onClick: () => fileInput.click() }, 'Restore from file');
+
+  const pasteBtn = el('button.btn.btn-ghost', {
+    onClick: () => {
+      const box = el('textarea', {
+        rows: '6',
+        placeholder: 'Paste your backup text here…',
+        style: {
+          width: '100%', marginTop: '.6rem', fontFamily: 'var(--mono)', fontSize: '.75rem',
+          background: 'var(--bg-sunken)', color: 'var(--text)',
+          border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '.6rem',
+        },
+      });
+      status.replaceChildren(
+        box,
+        el('button.btn.btn-primary', {
+          style: { marginTop: '.6rem' },
+          onClick: () => applyImport(box.value),
+        }, 'Restore this'),
+      );
+      box.focus();
+    },
+  }, 'Paste backup text');
+
+  function applyImport(text) {
+    const result = importProfile(text);
+    if (result.error) {
+      showStatus(result.error, 'wrong');
+      return;
+    }
+    if (!confirm(`${result.summary}\n\nThis replaces your current progress. Continue?`)) return;
+    onImport(result.profile);
+  }
+
+  function showStatus(message, tone) {
+    status.replaceChildren(el(`div.feedback.${tone}`, el('div.feedback-body', el('p', message))));
+  }
+
+  panel.append(
+    el('div.row.row-wrap', { style: { marginTop: '.8rem' } },
+      downloadBtn, showTextBtn, restoreBtn, pasteBtn),
+    fileInput,
+    status,
+  );
+  return panel;
 }
 
 /* ------------------------------------------------------------------ *

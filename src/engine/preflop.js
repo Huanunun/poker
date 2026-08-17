@@ -12,6 +12,108 @@ import { parseRange, rangeSize } from './ranges.js';
 
 export const POSITIONS = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'];
 
+/**
+ * Table sizes this course covers: cash games, 6 to 10 players, 100bb.
+ *
+ * Seat names differ by table size, and this matters more than it looks. "Under
+ * the gun" at a 6-handed table has four players behind; at a 9-handed table it
+ * has seven, and the same hand is a comfortable open in one and a clear fold in
+ * the other. Teaching one set of ranges for "UTG" without saying how many
+ * players are at the table is how people end up playing a full-ring game with
+ * 6-max ranges and losing steadily.
+ */
+export const TABLE_SIZES = {
+  6: {
+    players: 6,
+    name: '6-handed',
+    seats: ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'],
+    openSize: 2.5,
+    note: 'Short-handed. Ranges are wide everywhere because the blinds come around fast.',
+  },
+  8: {
+    players: 8,
+    name: '8-handed',
+    seats: ['UTG', 'UTG1', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+    openSize: 2.5,
+    note: 'The common live and online middle ground. Closer to full ring than to 6-max.',
+  },
+  9: {
+    players: 9,
+    name: '9-handed',
+    seats: ['UTG', 'UTG1', 'UTG2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+    openSize: 3,
+    note: 'Full ring. Early seats are very tight; the money is made on the button and in the blinds.',
+  },
+  10: {
+    players: 10,
+    name: '10-handed',
+    seats: ['UTG', 'UTG1', 'UTG2', 'MP1', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+    openSize: 3,
+    note: 'Typical live full ring. Tighter still up front, and opens are usually larger because more players call.',
+  },
+};
+
+/**
+ * Full-ring opening ranges, by seat.
+ *
+ * Simplified and reconstructible rather than solver-exact — the point is that a
+ * learner can rebuild them by counting players behind, not that they match a
+ * solve to the combination.
+ */
+export const FULL_RING_RFI = {
+  UTG: '77+, ATs+, KQs, AQo+',
+  UTG1: '66+, A9s+, KJs+, QJs, AJo+',
+  UTG2: '55+, A8s+, KTs+, QTs+, JTs, AJo+, KQo',
+  MP1: '55+, A8s+, KTs+, QTs+, JTs, ATo+, KQo',
+  LJ: '44+, A7s+, KTs+, QTs+, J9s+, T9s, ATo+, KQo',
+  HJ: '33+, A5s+, K9s+, Q9s+, J9s+, T8s+, 98s, ATo+, KJo+, QJo',
+  CO: '22+, A2s+, K8s+, Q9s+, J9s+, T8s+, 97s+, 87s, 76s, A9o+, KTo+, QTo+, JTo',
+  BTN: '22+, A2s+, K5s+, Q7s+, J7s+, T7s+, 96s+, 86s+, 75s+, 65s, 54s, A5o+, K8o+, Q9o+, J9o+, T9o',
+  SB: '22+, A2s+, K7s+, Q8s+, J8s+, T8s+, 97s+, 86s+, 76s, A7o+, K9o+, Q9o+, JTo',
+};
+
+/** Seats in order, with how many players still act behind at a given size. */
+export function seatsFor(tableSize) {
+  const table = TABLE_SIZES[tableSize] || TABLE_SIZES[9];
+  return table.seats.map((seat, index) => ({
+    seat,
+    // Everyone after this seat, excluding the blinds' preflop option.
+    behind: table.seats.length - index - 1,
+    isBlind: seat === 'SB' || seat === 'BB',
+  }));
+}
+
+/** The opening range for a seat at a given table size. */
+export function openingRange(tableSize, seat) {
+  if (Number(tableSize) <= 6) return RFI[seat] ?? RFI.CO;
+  return FULL_RING_RFI[seat] ?? FULL_RING_RFI.CO;
+}
+
+/**
+ * How much to open, and why.
+ *
+ * The size is not a matter of taste. It is set by how many players are behind
+ * and how sticky they are: more callers means a bigger raise, because you need
+ * to charge each of them and you want fewer of them.
+ */
+export function openSizeFor(tableSize, { limpers = 0, sticky = false } = {}) {
+  const table = TABLE_SIZES[tableSize] || TABLE_SIZES[9];
+  const base = table.openSize + (sticky ? 0.5 : 0);
+  const size = base + limpers;
+  return {
+    size,
+    base: table.openSize,
+    steps: [
+      `At a ${table.name} table the standard open is ${table.openSize} big blinds.`,
+      limpers
+        ? `Add one big blind for each of the ${limpers} limper${limpers > 1 ? 's' : ''}: +${limpers}.`
+        : 'Nobody has limped, so no addition.',
+      sticky ? 'These players call too much, so add half a blind to charge them properly.' : null,
+      `Open to ${size} big blinds.`,
+    ].filter(Boolean),
+  };
+}
+
 export const POSITION_INFO = {
   UTG: {
     name: 'Under the gun',

@@ -1,387 +1,297 @@
 /**
- * Level 1 — Foundations. Roughly days 1 to 30.
+ * Level 1 — What a decision is worth. Roughly days 1 to 35.
  *
- * Goal: by the end of this level the learner can sit at a table, always know
- * what they hold, always know what beats it, and never be the person holding
- * up the game. No maths beyond counting. Nothing memorised.
+ * This course starts at the maths, not at the rules. The learner it is built
+ * for knows how the game is played and cannot yet price a decision, so there is
+ * no hand-ranking quiz and no card-notation drill: those appear only as
+ * warm-ups if something is actually being got wrong.
  *
- * The order is deliberate. Reading your own hand comes before anything about
- * strategy, because a strategy built on a misread hand is worse than no
- * strategy at all.
+ * The level builds one number — the expected value of an action, in chips —
+ * from parts that are all counting. By the end the learner can price a call
+ * exactly and knows that folding is worth zero, which is the baseline every
+ * later decision is measured against.
  */
 
 export const LEVEL_1 = {
   level: 1,
-  name: 'Foundations',
-  subtitle: 'Know what you have, and what beats it',
-  promise: 'Sit down at any table and never be lost.',
+  name: 'What a Decision Is Worth',
+  subtitle: 'EV, in chips, from counting',
+  promise: 'Put a number on any call, and know whether it beats folding.',
   lessons: [
     {
       id: 'l1-01',
-      unit: 'The language',
-      title: 'Two characters per card',
-      skill: 'card-notation',
+      unit: 'The zero',
+      title: 'Every action is worth a number of chips',
+      skill: 'ev-basics',
       minutes: 15,
       concepts: [
         {
-          title: 'Every card is written the same way',
-          body: 'A card is its rank followed by its suit, always two characters. The ace of spades is `As`. The seven of hearts is `7h`. The only special case is the ten, written `T` rather than `10`, so that every card takes exactly the same space.\n\nThis is not trivia. Every hand you ever discuss, every chart you ever read, and every drill in this course uses this notation. Reading it without thinking frees your attention for the actual game.',
+          title: 'Expected value is an average, not a prediction',
+          body: 'Every action you can take — fold, call, raise — is worth some number of big blinds on average. Not this hand: on average, across every time you face that spot.\n\nThe correct play is simply the action worth the most. That is the whole game. Everything else in this course exists to help you work out those numbers faster and more accurately.',
         },
         {
-          title: 'Suits have no ranking',
-          body: 'In Hold\'em, no suit beats another. Spades are not better than clubs. Suits matter only for making flushes and for telling two cards apart. If two players make the same hand of different suits, they split the pot.',
+          title: 'Why an average is the right thing to care about',
+          body: 'You will play this spot hundreds of times. What happens in one instance is noise; what happens on average is your income.\n\nSo "was that the right call?" never means "did it win?". It means "was that action worth more chips than the alternatives, at the moment I chose it?"',
         },
       ],
-      drills: [{ gen: 'read-notation', count: 6 }],
-      takeaway: 'Rank then suit, two characters, T for ten. Suits never outrank each other.',
+      drills: [{ gen: 'ev-of-folding', count: 3 }, { gen: 'decision-vs-result', count: 2 }],
+      takeaway: 'Every action is worth a number. Pick the biggest. Results do not change which was biggest.',
     },
     {
       id: 'l1-02',
-      unit: 'The language',
-      title: 'How a hand of Hold\'em runs',
-      skill: 'card-notation',
+      unit: 'The zero',
+      title: 'Folding is worth exactly zero',
+      skill: 'ev-basics',
       minutes: 15,
       concepts: [
         {
-          title: 'Two cards yours, five cards shared',
-          body: 'You are dealt two private cards. Then five community cards arrive in three instalments: the flop (three at once), the turn (one), and the river (one). Everyone shares those five.\n\nYour hand is the best five cards you can make from your two plus the five on the board. You can use both of your cards, one of them, or neither.',
+          title: 'The baseline',
+          body: 'Folding is worth zero. Not negative — zero. You put in no more chips and you win no chips.\n\nThat makes it the line every other action has to beat. Calling is right when calling is worth more than zero. Raising is right when it is worth more than both. There is never anything else to decide.',
         },
         {
-          title: 'Four rounds of betting',
-          body: 'There is a betting round before the flop, and one after each of the flop, turn and river. A hand can end at any of them if everyone but one player folds. Most hands end before anyone shows a card, which is the first hint that this game is not really about the cards.',
+          title: 'The money already in the pot is not yours',
+          body: 'The chips you put in earlier are gone. They belong to the pot, and they are going to whoever wins it. Folding does not lose them, because you had already lost them the moment they went in.\n\n"I have too much invested to fold now" is the most expensive sentence in poker. The chips in the middle change the *price* you are being offered, which matters enormously — but they never create an obligation to keep going.',
         },
       ],
-      drills: [{ gen: 'read-notation', count: 3 }, { gen: 'name-your-hand', count: 3 }],
-      takeaway: 'Two private cards, five shared, four betting rounds. Best five cards wins.',
+      drills: [{ gen: 'ev-of-folding', count: 4 }],
+      takeaway: 'Fold = 0. It is the number everything else must beat. Money already in is not yours.',
     },
     {
       id: 'l1-03',
-      unit: 'Hand rankings',
-      title: 'The nine categories',
-      skill: 'hand-ranking',
-      minutes: 20,
-      concepts: [
-        {
-          title: 'Rarer beats commoner',
-          body: 'The nine hand categories, weakest to strongest: high card, one pair, two pair, three of a kind, straight, flush, full house, four of a kind, straight flush.\n\nThere is no arbitrary decision here. The ordering is exactly how rare each hand is. A flush beats a straight because flushes are harder to make. If you ever forget the order, reason it out from rarity rather than reciting it.',
-        },
-        {
-          title: 'The two everyone confuses',
-          body: 'Straight versus flush is the one beginners get wrong. Five in a row is a straight; five of one suit is a flush; the flush wins. Full house versus flush is the other one: the full house wins.',
-        },
-      ],
-      drills: [{ gen: 'name-your-hand', count: 5 }, { gen: 'who-wins', count: 3 }],
-      takeaway: 'Rarer hands beat commoner ones. Flush beats straight; full house beats flush.',
-    },
-    {
-      id: 'l1-04',
-      unit: 'Hand rankings',
-      title: 'Straights, and the ace at both ends',
-      skill: 'hand-ranking',
-      minutes: 15,
-      concepts: [
-        {
-          title: 'The ace plays high or low',
-          body: 'An ace can be the top of `T J Q K A` or the bottom of `A 2 3 4 5`. The low one is called the wheel, and it is the weakest possible straight — it is five-high, so any other straight beats it.\n\nWhat an ace cannot do is turn a corner. `Q K A 2 3` is not a straight. This costs beginners real money when they think they have made one.',
-        },
-      ],
-      drills: [{ gen: 'name-your-hand', count: 4 }, { gen: 'who-wins', count: 3 }],
-      takeaway: 'Aces play high or low but never wrap around. The wheel is the weakest straight.',
-    },
-    {
-      id: 'l1-05',
-      unit: 'Hand rankings',
-      title: 'Kickers decide close hands',
-      skill: 'best-five',
-      minutes: 20,
-      concepts: [
-        {
-          title: 'A hand is exactly five cards',
-          body: 'When two players make the same pair, the remaining cards break the tie one at a time, highest first. Those are kickers.\n\nHolding `AK` on a board of `A 9 4 2 7` beats `AQ` because the king outranks the queen. This is where kicker trouble comes from: hands like `A5` make top pair and lose to every other ace. The pair is not the problem, the second card is.',
-        },
-        {
-          title: 'Sometimes your cards do not play at all',
-          body: 'If the board is `A K Q J T` and you hold `2 3`, your hand is the board: an ace-high straight. So is everyone else\'s. The pot is split. Recognising when you are playing the board saves you from betting into a guaranteed chop.',
-        },
-      ],
-      drills: [{ gen: 'best-five', count: 4 }, { gen: 'who-wins', count: 3 }],
-      takeaway: 'Only five cards count. When pairs tie, the kicker decides.',
-    },
-    {
-      id: 'l1-06',
-      unit: 'Board reading',
-      title: 'Name your hand every time',
-      skill: 'board-reading',
-      minutes: 20,
-      concepts: [
-        {
-          title: 'Say it out loud',
-          body: 'Before you make any decision, name your hand in words: "I have two pair, kings and sevens." It feels slow and unnecessary. It is neither.\n\nMisreading your own hand is the single most expensive beginner mistake, and it happens most often in exactly the spots where the money is: a flush you did not notice, a straight you thought you had, a board that pairs and turns your two pair into something worse than it looks.',
-        },
-      ],
-      drills: [{ gen: 'name-your-hand', count: 6 }, { gen: 'best-five', count: 2 }],
-      takeaway: 'Name your hand in words before every decision. Every time, not just the interesting ones.',
-    },
-    {
-      id: 'l1-07',
-      unit: 'Board reading',
-      title: 'What is the best possible hand?',
-      skill: 'nuts-reading',
-      minutes: 25,
-      concepts: [
-        {
-          title: 'The nuts',
-          body: 'The nuts is the best hand anyone could have on this board. Asking "what is the nuts?" on every street is the fastest board-reading habit you can build.\n\nIt is not because you expect them to have it. It is because the distance between your hand and the nuts tells you how much room you have to be wrong. Top pair on a board where the nuts is also top pair is a monster. The same top pair on a board with a possible flush and straight is a hand you should be careful with.',
-        },
-        {
-          title: 'Work down from the top',
-          body: 'Three of a suit on board? The nuts is the ace-high flush, unless the board is paired, in which case a full house beats it. Four to a straight? Someone might have the fifth card. Paired board? Quads and full houses are live.\n\nRun the check in that order and it takes about two seconds.',
-        },
-      ],
-      drills: [{ gen: 'find-the-nuts', count: 5 }],
-      takeaway: 'Ask what the nuts is on every street. The gap between it and your hand is your margin for error.',
-    },
-    {
-      id: 'l1-08',
-      unit: 'Board reading',
-      title: 'Reading someone else\'s hand at showdown',
-      skill: 'board-reading',
-      minutes: 20,
-      concepts: [
-        {
-          title: 'Two hands, one board',
-          body: 'At showdown you have to compare two five-card hands built from the same five shared cards. Do them one at a time: name your hand, name theirs, then compare.\n\nThe error to watch for is counting cards twice, or using three of your own cards. You have two. You will never use more than two.',
-        },
-      ],
-      drills: [{ gen: 'who-wins', count: 6 }],
-      takeaway: 'Name both hands separately, then compare. Never more than two of your own cards.',
-    },
-    {
-      id: 'l1-09',
-      unit: 'Position',
-      title: 'Why the seat matters more than the cards',
-      skill: 'position',
-      minutes: 25,
-      concepts: [
-        {
-          title: 'Acting last is information',
-          body: 'The player who acts last in a betting round has seen what everyone else did. The player who acts first has to guess.\n\nThat is the entire concept, and it is worth more than most card strength. The same hand that is a fold from the first seat is a clear raise from the button, purely because of who has to act first for the rest of the hand.',
-        },
-        {
-          title: 'The six seats',
-          body: 'At a six-handed table: under the gun acts first before the flop with five players still to come. Then middle position, cutoff, and the button. The small and big blinds have posted money and act last before the flop — but first on every street after it, which is why they are the hardest seats to play.',
-        },
-      ],
-      drills: [{ gen: 'position-compare', count: 5 }],
-      takeaway: 'Position is information, and information is money. The button is the best seat at the table.',
-    },
-    {
-      id: 'l1-10',
-      unit: 'Position',
-      title: 'Counting the players behind you',
-      skill: 'position',
-      minutes: 15,
-      concepts: [
-        {
-          title: 'Each player behind is another chance to be beaten',
-          body: 'A hand is worth playing when it is likely to be the best one out there. If five players are still to act, there are five chances that someone has something better. If one is, there is one.\n\nThis is why opening ranges widen as you move around the table. It is not a rule to memorise. It is a direct consequence of counting.',
-        },
-      ],
-      drills: [{ gen: 'position-compare', count: 4 }, { gen: 'open-or-fold', count: 3 }],
-      takeaway: 'Count the players left to act. That number decides how strong your hand needs to be.',
-    },
-    {
-      id: 'l1-11',
-      unit: 'First decisions',
-      title: 'The three questions before the flop',
-      skill: 'starting-hands',
-      minutes: 25,
-      concepts: [
-        {
-          title: 'Strength, position, and what happened already',
-          body: 'Before the flop, three things decide your action: how strong your two cards are, how many players act after you, and what those before you have done.\n\nBeginners use only the first. That is why they play too many hands from bad seats and lose money before a single community card appears.',
-        },
-        {
-          title: 'Raise or fold, mostly',
-          body: 'When the pot has not been raised, your default is to raise or fold, not to call. Calling invites players in behind you and gives up the chance to win the pot immediately. There are exceptions, and you will learn them, but "limping" into pots is one of the clearest signs of an inexperienced player.',
-        },
-      ],
-      drills: [{ gen: 'open-or-fold', count: 6 }],
-      takeaway: 'Strength, position, prior action. When you are first in, raise or fold.',
-    },
-    {
-      id: 'l1-12',
-      unit: 'First decisions',
-      title: 'Why suited and connected cards are worth more',
-      skill: 'starting-hands',
-      minutes: 20,
-      concepts: [
-        {
-          title: 'Suited is a small edge that compounds',
-          body: 'Two cards of the same suit make a flush about 6% of the time by the river, against roughly 2% for offsuit cards. That sounds tiny, and in raw equity it is worth only about 2 to 4 percentage points.\n\nThe real value is playability. A suited hand can keep going on more flops with a genuine reason, which means it wins pots that an offsuit version would have to abandon.',
-        },
-        {
-          title: 'Gaps cost you straights',
-          body: 'Seventy-six suited makes far more straights than seventy-two suited. Connected cards make the hands that win big pots — straights and two pair — which is how you get paid off by an opponent with top pair.',
-        },
-      ],
-      drills: [{ gen: 'open-or-fold', count: 4 }, { gen: 'combo-count', count: 3 }],
-      takeaway: 'Suited and connected cards are worth playing because of the pots they win, not the equity they add.',
-    },
-    {
-      id: 'l1-13',
-      unit: 'First decisions',
-      title: 'Domination: the hands that flop well and still lose',
-      skill: 'starting-hands',
-      minutes: 20,
-      concepts: [
-        {
-          title: 'Top pair is not automatically good',
-          body: 'King-seven makes top pair on a king-high flop. So does king-queen, king-jack, king-ten, and ace-king — and every one of them beats you.\n\nA dominated hand is one that makes exactly the hand you were hoping for and is still behind. These are more expensive than hands that simply miss, because missing is cheap and being second best is not.',
-        },
-        {
-          title: 'Which hands are the traps',
-          body: 'Weak aces and weak kings offsuit are the classic offenders: `A5o`, `K8o`, `Q7o`. They look playable because they contain a big card. That big card is precisely the problem — it is what gets you involved in the pot you are losing.',
-        },
-      ],
-      drills: [{ gen: 'open-or-fold', count: 5 }],
-      takeaway: 'Beware hands that hit the flop and are still second best. Missing is cheap; domination is not.',
-    },
-    {
-      id: 'l1-14',
-      unit: 'Counting',
-      title: 'The unseen deck',
+      unit: 'Counting your share',
+      title: 'The cards you have not seen',
       skill: 'unseen-cards',
       minutes: 15,
       concepts: [
         {
-          title: 'The number under every probability',
-          body: 'Fifty-two cards. You see two of yours and whatever is on the board. Everything else is unseen. On the flop that is 47 cards; on the turn, 46.\n\nEvery probability in poker is a fraction with that number underneath. There is no other maths to learn here — the whole subject is counting the good cards and dividing.',
+          title: 'The number underneath every probability',
+          body: 'Fifty-two cards. You see your two and whatever is on the board. On the flop that leaves 47 unseen; on the turn, 46.\n\nEvery probability in poker is a fraction with that number underneath it. There is no other maths here — the whole subject is counting the cards that help you and dividing.',
         },
         {
-          title: 'Other players\' cards count as unseen',
-          body: 'This surprises people. If five opponents are holding ten cards, those are still "unseen" from your point of view, and you treat them as though they were still in the deck.\n\nThat is correct, not a simplification. Probability describes what you know, not where the cards physically are. Since you have no information about which cards they hold, they are exactly as likely to be anywhere.',
+          title: 'Their cards count as unseen',
+          body: 'If five opponents hold ten cards, those still count as unseen from where you sit, and you treat them as though they were in the deck.\n\nThat is correct rather than a simplification. Probability describes what you know. You have no information about which cards they hold, so they are exactly as likely to be anywhere.',
         },
       ],
-      drills: [{ gen: 'unseen-count', count: 6 }],
-      takeaway: '47 unseen on the flop, 46 on the turn. Other players\' cards count as unseen.',
+      drills: [{ gen: 'unseen-count', count: 4 }],
+      takeaway: '47 unseen on the flop, 46 on the turn. Their cards count as unseen.',
+    },
+    {
+      id: 'l1-04',
+      unit: 'Counting your share',
+      title: 'Counting the cards that save you',
+      skill: 'outs-counting',
+      minutes: 20,
+      concepts: [
+        {
+          title: 'An out is a specific card',
+          body: 'An out is a card that turns your losing hand into a winning one. Not "a heart" — the actual hearts, each one a card in the deck.\n\nFour hearts between your hand and the board means nine hearts left. Nine outs. You did not use a formula, you counted.',
+        },
+        {
+          title: 'The counts worth knowing by sight',
+          body: 'Flush draw: 9. Open-ended straight draw: 8. Gutshot: 4. Two overcards: 6.\n\nDo not memorise these. Count them once each and they become obvious, because the counting takes two seconds and it works when the situation is slightly different from the list.',
+        },
+      ],
+      drills: [{ gen: 'spot-draws', count: 3 }, { gen: 'outs-chain', count: 2 }],
+      takeaway: 'An out is a specific card. Count them; never estimate them.',
+    },
+    {
+      id: 'l1-05',
+      unit: 'Counting your share',
+      title: 'Outs that are already beaten',
+      skill: 'outs-counting',
+      minutes: 20,
+      concepts: [
+        {
+          title: 'Some cards arrive and you still lose',
+          body: 'You hold two hearts with two on the board — nine outs, obviously. But if they have a set, two of those hearts pair the board and give them a full house. You make your flush and lose your stack.\n\nThose are dirty outs. The card comes, you celebrate, and you are still behind.',
+        },
+        {
+          title: 'Count against their hand, not in the abstract',
+          body: 'The question is never "how many cards improve me?" but "how many cards make me *better than them*?" Those are different numbers and the gap is where money goes.\n\nThe drills show their cards face up so you can see the difference. At the table you will be estimating, but you will be estimating the right thing.',
+        },
+      ],
+      drills: [{ gen: 'outs-chain', count: 3 }],
+      takeaway: 'Count outs that beat their hand, not outs that improve yours.',
+    },
+    {
+      id: 'l1-06',
+      unit: 'Counting your share',
+      title: 'Turning outs into a percentage',
+      skill: 'outs-to-equity',
+      minutes: 20,
+      concepts: [
+        {
+          title: 'One division and you are done',
+          body: 'Nine outs, 47 unseen cards. Nine divided by 47 is a bit under one in five — about 19%.\n\nThat is the whole calculation for the next card. Count the good ones, divide by the unseen ones. It works for any number of outs on any street, and you never have to look anything up.',
+        },
+      ],
+      drills: [{ gen: 'outs-to-percent', count: 4, params: { street: 'turn' } }],
+      takeaway: 'Outs ÷ unseen cards = your chance on the next card.',
+    },
+    {
+      id: 'l1-07',
+      unit: 'Counting your share',
+      title: 'Two cards to come',
+      skill: 'outs-to-equity',
+      minutes: 20,
+      concepts: [
+        {
+          title: 'Two chances, slightly less than double',
+          body: 'On the flop you will see two more cards, so you get two attempts. Roughly that doubles it: nine outs is about 19% on one card and about 35% across both.\n\nIt is not quite double, because sometimes both cards are outs and you only needed one. That overlap is why doubling slightly overstates, and it matters more the more outs you have.',
+        },
+      ],
+      drills: [{ gen: 'outs-to-percent', count: 4, params: { street: 'flop' } }],
+      takeaway: 'Two cards to come is nearly twice one card — slightly less, because of overlap.',
+    },
+    {
+      id: 'l1-08',
+      unit: 'Counting your share',
+      title: 'The shortcut you just derived',
+      skill: 'outs-to-equity',
+      minutes: 20,
+      concepts: [
+        {
+          title: 'Times two, or times four',
+          body: 'You have now done this enough times to see the pattern. One card to come: outs × 2. Two cards to come: outs × 4.\n\nNine outs on the turn is 18%, true answer 19.6%. Nine outs on the flop is 36%, true answer 35%. Close enough to act on, every time, in about a second.',
+        },
+        {
+          title: 'And where it lies to you',
+          body: 'The times-four version runs high when you have a lot of outs. With fifteen outs it says 60% and the truth is nearer 54%. Above about eight outs, take a few points off.\n\nThis is the difference between a shortcut you own and a chart you memorised. You know when this one is wrong, so you can use it at speed without it hurting you.',
+        },
+      ],
+      drills: [{ gen: 'outs-to-percent', count: 5 }],
+      takeaway: '×2 for one card, ×4 for two. Shade down above 8 outs.',
+    },
+    {
+      id: 'l1-09',
+      unit: 'The price',
+      title: 'What the pot is offering you',
+      skill: 'pot-odds',
+      minutes: 25,
+      concepts: [
+        {
+          title: 'Your money as a share of the pot',
+          body: 'There is 10bb in the pot and they bet 5bb. If you call, the pot becomes 20bb and 5bb of it is yours. Your money is a quarter of what you are playing for.\n\nSo you need to win at least a quarter of the time. That is pot odds: your call, divided by the final pot.',
+        },
+        {
+          title: 'Include your own call in the bottom',
+          body: 'The common error is dividing by the pot *before* your call. The pot you win includes the chips you are about to put in, so they belong underneath.\n\nGet that one detail right and pot odds are permanently easy.',
+        },
+      ],
+      drills: [{ gen: 'pot-odds-chain', count: 3 }],
+      takeaway: 'Your call ÷ the final pot, including your call. That is the equity you need.',
+    },
+    {
+      id: 'l1-10',
+      unit: 'The price',
+      title: 'Every bet size has a fixed price',
+      skill: 'break-even',
+      minutes: 25,
+      concepts: [
+        {
+          title: 'The stakes never matter',
+          body: 'A half-pot bet always needs 25%. Always — at 2bb or 2,000bb. A pot-sized bet always needs 33%. These are properties of the *fraction*, not the amounts.\n\nOnce you see that, most of the arithmetic at the table disappears. You stop calculating and start recognising.',
+        },
+        {
+          title: 'The five you will actually meet',
+          body: 'A third of pot needs 20%. Half needs 25%. Two thirds needs 29%. Three quarters needs 30%. A pot-sized bet needs 33%.\n\nYou derived every one of these last lesson. They are yours now — and note how close together they are. Every normal bet needs somewhere between 20% and 33%. That alone is a usable table read.',
+        },
+      ],
+      drills: [{ gen: 'bet-size-price', count: 5 }],
+      takeaway: 'Third: 20%. Half: 25%. Two-thirds: 29%. Three-quarters: 30%. Pot: 33%.',
+    },
+    {
+      id: 'l1-11',
+      unit: 'The price',
+      title: 'Equity against price: the whole decision',
+      skill: 'facing-bets',
+      minutes: 25,
+      concepts: [
+        {
+          title: 'Two numbers, one comparison',
+          body: 'You have an equity — how often you win. You have a price — how often you need to win. Bigger, call. Smaller, fold.\n\nThat is it. Every call you will ever face is this. What gets harder at a real table is estimating the two numbers, never the comparison.',
+        },
+      ],
+      drills: [{ gen: 'call-or-fold', count: 3 }],
+      takeaway: 'Equity versus price. Bigger, call. Smaller, fold.',
+    },
+    {
+      id: 'l1-12',
+      unit: 'The price',
+      title: 'Facing a flop bet: count one card, not two',
+      skill: 'facing-bets',
+      minutes: 20,
+      concepts: [
+        {
+          title: 'You are usually not being shown both cards',
+          body: 'On the flop facing a bet, you pay this bet to see the turn — and then they will very likely bet again. So you get one card for this price, not two.\n\nUsing the times-four number when facing a flop bet is how people talk themselves into calls they cannot afford. Use times four only when the money is going all in now.',
+        },
+      ],
+      drills: [{ gen: 'call-or-fold', count: 3 }],
+      takeaway: 'Facing a flop bet, count one card unless you are going all in.',
+    },
+    {
+      id: 'l1-13',
+      unit: 'EV in chips',
+      title: 'What a call is worth',
+      skill: 'ev-basics',
+      minutes: 25,
+      concepts: [
+        {
+          title: 'Winnings times how often, minus cost times how often',
+          body: 'Pot odds tell you whether a call is right. EV tells you *how* right, in chips.\n\nYou win the pot some of the time and lose your call the rest. EV = (how often you win × what you win) − (how often you lose × what it costs). Two multiplications and a subtraction.',
+        },
+        {
+          title: 'Why the size matters and not just the sign',
+          body: 'Two calls can both be correct and one can be worth ten times the other. Knowing which spots carry the most money tells you where to concentrate — both at the table and in your study.',
+        },
+      ],
+      drills: [{ gen: 'ev-call-chain', count: 2 }, { gen: 'ev-of-call', count: 2 }],
+      takeaway: 'EV puts a number on the decision. Positive beats folding, whatever happens this hand.',
+    },
+    {
+      id: 'l1-14',
+      unit: 'EV in chips',
+      title: 'Good decisions that lose',
+      skill: 'variance',
+      minutes: 20,
+      concepts: [
+        {
+          title: 'You will lose most of the pots you should win',
+          body: 'With 80% equity you lose one time in five. Over an evening that happens repeatedly and feels like being cheated.\n\nIt is not. It is the 20% doing what 20% does. A decision is good or bad before the cards come, and nothing that happens afterwards changes it.',
+        },
+        {
+          title: 'Results teach the wrong lesson',
+          body: 'This is the real danger. Judge plays by outcomes and you learn to avoid correct calls that happened to lose, and to repeat terrible ones that happened to win.\n\nJudge the decision, with the information you had. It is the only standard that improves you.',
+        },
+      ],
+      drills: [{ gen: 'decision-vs-result', count: 3 }, { gen: 'ev-call-chain', count: 1 }],
+      takeaway: 'Judge the decision, not the result. Results are too noisy to learn from.',
     },
     {
       id: 'l1-15',
-      unit: 'Counting',
-      title: 'Counting combinations without algebra',
-      skill: 'combinatorics',
-      minutes: 25,
-      concepts: [
-        {
-          title: 'Six, four, and twelve',
-          body: 'There are exactly three shapes a starting hand can take, and each has a fixed number of ways to be dealt.\n\nA pocket pair: four cards of that rank, choose two, which is six ways. A suited hand: the two cards must share a suit, and there are four suits, so four ways. An offsuit hand: four choices for the first card times four for the second is sixteen, minus the four that came out suited, leaving twelve.',
-        },
-        {
-          title: 'Why anyone cares',
-          body: 'Because it tells you what your opponent is likely to have. There are twelve ways to hold ace-king offsuit and only six ways to hold aces. So when you are wondering whether they have the monster or the strong-but-beatable hand, the counting has already answered most of the question before you consider anything else.',
-        },
-      ],
-      drills: [{ gen: 'combo-count', count: 8 }],
-      takeaway: 'Pairs: 6 ways. Suited: 4. Offsuit: 12. Unpaired hands are far more common than pairs.',
-    },
-    {
-      id: 'l1-16',
-      unit: 'Board texture',
-      title: 'Wet boards and dry boards',
-      skill: 'texture',
-      minutes: 25,
-      concepts: [
-        {
-          title: 'How much did this flop help everyone?',
-          body: 'A dry flop is disconnected, rainbow, and usually has one high card: `K 7 2` with three different suits. Very few hands connect with it.\n\nA wet flop is connected or suited or both: `J T 9` with two hearts. An enormous number of hands have something — a pair, a straight draw, a flush draw, or several at once.',
-        },
-        {
-          title: 'Texture decides how you bet',
-          body: 'On dry boards, small bets work: nobody has anything, so you do not need to charge anyone, and you do not need to risk much to make them fold.\n\nOn wet boards, bets need to be bigger, because there are real draws that will happily call a cheap price and beat you on the next card.',
-        },
-      ],
-      drills: [{ gen: 'flop-texture', count: 6 }],
-      takeaway: 'Dry boards miss everyone, so bet small. Wet boards hit many hands, so bet bigger or not at all.',
-    },
-    {
-      id: 'l1-17',
-      unit: 'Board texture',
-      title: 'Seeing every draw on the board',
-      skill: 'draw-spotting',
-      minutes: 25,
-      concepts: [
-        {
-          title: 'Two kinds of draw',
-          body: 'A flush draw is four cards of one suit, needing a fifth. A straight draw is four to a run: open-ended if either end completes it, a gutshot if only one specific rank does.\n\nOpen-ended gives you eight cards; a gutshot gives you four. That difference is enormous and it is the whole reason the distinction has a name.',
-        },
-        {
-          title: 'Spot yours and theirs',
-          body: 'Look at every board twice: once for what you have, once for what the board makes possible for anyone else. The draws that exist are simultaneously the hands that will call your bets and the cards that will beat you later.',
-        },
-      ],
-      drills: [{ gen: 'spot-draws', count: 6 }],
-      takeaway: 'Open-ended straight draw: 8 cards. Gutshot: 4. Flush draw: 9. Look for yours and theirs.',
-    },
-    {
-      id: 'l1-18',
-      unit: 'Putting it together',
-      title: 'Playing the board and split pots',
-      skill: 'best-five',
-      minutes: 15,
-      concepts: [
-        {
-          title: 'When nobody can win',
-          body: 'Sometimes the five community cards are the best hand available and nobody\'s private cards improve on them. Everyone still in the pot ties.\n\nThe practical lesson is to notice it before you bet. Betting into a board that has already made your hand for you, when your opponent has the same hand, cannot win you anything and can only lose you money if they raise.',
-        },
-      ],
-      drills: [{ gen: 'best-five', count: 4 }, { gen: 'who-wins', count: 3 }],
-      takeaway: 'When the board is the best hand, everyone chops. Notice before you bet, not after.',
-    },
-    {
-      id: 'l1-19',
-      unit: 'Putting it together',
-      title: 'Your first complete decision',
-      skill: 'starting-hands',
-      minutes: 30,
-      concepts: [
-        {
-          title: 'Everything so far, in one sequence',
-          body: 'You now have enough to play a hand properly from the start. Before the flop: how strong are my cards, how many players act after me, what has happened already. After the flop: what do I have, what is the nuts, what draws exist, how wet is this board.\n\nThat is six questions and none of them require arithmetic. Answer them in order and you are already playing better than most people at a low-stakes table.',
-        },
-      ],
-      drills: [
-        { gen: 'open-or-fold', count: 3 },
-        { gen: 'name-your-hand', count: 2 },
-        { gen: 'find-the-nuts', count: 2 },
-        { gen: 'flop-texture', count: 2 },
-      ],
-      takeaway: 'Six questions, no arithmetic, and you are ahead of most beginners.',
-    },
-    {
-      id: 'l1-20',
-      unit: 'Putting it together',
+      unit: 'EV in chips',
       title: 'Level 1 checkpoint',
-      skill: 'board-reading',
+      skill: 'ev-basics',
       minutes: 30,
       checkpoint: true,
       concepts: [
         {
-          title: 'What you should be able to do now',
-          body: 'Read any hand written in shorthand. Name your hand instantly on any board. Find the nuts. Spot every draw. Explain why the button plays more hands than the first seat.\n\nIf any of those feel shaky, the checkpoint will find it and send you back to the right lesson. That is what it is for — not a grade, a diagnostic.',
+          title: 'You can price a call now',
+          body: 'You can count outs against a real hand, turn them into a percentage two ways, price any bet size instantly, work out what a call is worth in chips, and explain why a losing call can be correct.\n\nThat is the foundation. From here every level is a different decision built on exactly these pieces.',
         },
       ],
       drills: [
-        { gen: 'name-your-hand', count: 3 },
-        { gen: 'who-wins', count: 3 },
-        { gen: 'find-the-nuts', count: 2 },
-        { gen: 'spot-draws', count: 2 },
-        { gen: 'best-five', count: 2 },
-        { gen: 'position-compare', count: 2 },
-        { gen: 'combo-count', count: 2 },
-        { gen: 'unseen-count', count: 2 },
+        { gen: 'ev-of-folding', count: 1 },
+        { gen: 'outs-chain', count: 1 },
+        { gen: 'outs-to-percent', count: 2 },
+        { gen: 'bet-size-price', count: 2 },
+        { gen: 'pot-odds-chain', count: 1 },
+        { gen: 'ev-call-chain', count: 1 },
+        { gen: 'call-or-fold', count: 1 },
+        { gen: 'decision-vs-result', count: 1 },
       ],
-      takeaway: 'Foundations done. From here on, every lesson adds a number to what you can already see.',
+      takeaway: 'You can price a call. Next: every spot where the price is not the whole story.',
     },
   ],
 };

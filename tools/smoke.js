@@ -165,15 +165,41 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.locator('.nav button', { hasText: 'Path' }).click();
 await page.waitForTimeout(150);
 
-const outsLesson = page.locator('.lesson-row', { hasText: 'An out is a card that saves you' });
-log(await outsLesson.isVisible().catch(() => false), 'level 2 unlocked after finishing level 1');
-await outsLesson.click();
+// Located structurally rather than by lesson title, so rewriting the
+// curriculum does not silently break the smoke test.
+const levelTwoCard = page.locator('.level-card').nth(1);
+log(
+  !(await levelTwoCard.evaluate((n) => n.classList.contains('locked'))),
+  'level 2 unlocked after finishing level 1',
+);
+// An unlocked, unfinished level renders already expanded, so only click the
+// header when the lessons are actually hidden.
+const firstLesson = levelTwoCard.locator('.lesson-row').first();
+if (!(await firstLesson.isVisible().catch(() => false))) {
+  await levelTwoCard.locator('.level-head').click();
+  await page.waitForTimeout(150);
+}
+await firstLesson.click();
 await page.waitForTimeout(200);
 
-// Walk to the first step chain in that lesson.
+// Walk to the first step chain in that lesson. The chain's properties are
+// captured the moment it appears, because any further clicking could complete
+// it and move on to a different exercise.
+let chainSnapshot = null;
+
+// The first session may already have shown a chain; this phase inspects one
+// deliberately, so the flag is reset rather than short-circuiting the walk.
+sawStepChain = false;
+
 for (let i = 0; i < 40 && !sawStepChain; i++) {
   if (await page.locator('.step-chain').first().isVisible().catch(() => false)) {
     sawStepChain = true;
+    chainSnapshot = {
+      steps: await page.locator('.steps-track .step-dot').count(),
+      hasFelt: await page.locator('.felt').first().isVisible().catch(() => false),
+      hasCounter: await page.locator('.step-counter').first().isVisible().catch(() => false),
+    };
+    await page.screenshot({ path: '/tmp/smoke-stepchain.png' });
     break;
   }
   const advance = page.locator('button', { hasText: /^(Got it|Continue|Finish lesson)$/ });
@@ -193,29 +219,34 @@ for (let i = 0; i < 40 && !sawStepChain; i++) {
 log(sawStepChain, 'a step chain was presented');
 
 if (sawStepChain) {
-  const dots = await page.locator('.steps-track .step-dot').count();
-  log(dots >= 3, `the chain breaks the decision into ${dots} steps`);
-  log(
-    await page.locator('.felt').first().isVisible().catch(() => false),
-    'the chain shows the hand on a table',
-  );
-  log(
-    await page.locator('.step-counter').first().isVisible().catch(() => false),
-    'the learner is told which step they are on',
-  );
+  log(chainSnapshot.steps >= 3, `the chain breaks the decision into ${chainSnapshot.steps} steps`);
+  log(chainSnapshot.hasFelt, 'the chain shows the hand on a table');
+  log(chainSnapshot.hasCounter, 'the learner is told which step they are on');
 
-  await page.screenshot({ path: '/tmp/smoke-stepchain.png' });
+  // Answer one step and confirm the chain grades it and keeps the history.
+  // `Check` stays on screen but disabled until an answer is given, so the
+  // locator must require an enabled button or it waits forever on a dead one.
+  const check = page.locator('button:not([disabled])', { hasText: /^Check$/ });
 
-  // Answer the first step and confirm the chain advances and keeps history.
-  await answerCurrent(page);
-  await page.locator('button', { hasText: /^Check$/ }).first().click();
-  await page.waitForTimeout(100);
+  if (!(await check.first().isVisible().catch(() => false))) {
+    await answerCurrent(page);
+    await page.waitForTimeout(80);
+  }
+  if (await check.first().isVisible().catch(() => false)) {
+    await check.first().click();
+    await page.waitForTimeout(150);
+  }
+
   log(
     await page.locator('.feedback').first().isVisible().catch(() => false),
     'each step is graded on its own',
   );
-  await page.locator('button', { hasText: /^Continue$/ }).first().click();
-  await page.waitForTimeout(120);
+
+  const cont = page.locator('button', { hasText: /^Continue$/ });
+  if (await cont.first().isVisible().catch(() => false)) {
+    await cont.first().click();
+    await page.waitForTimeout(150);
+  }
   log(
     await page.locator('.step-history .step-done').first().isVisible().catch(() => false),
     'answered steps stay visible so the reasoning chain builds up',

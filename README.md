@@ -1,8 +1,13 @@
 # Hold'em Dojo
 
-A learning system that takes a Texas Hold'em beginner to genuine competence over
-a year, fifteen to forty-five minutes a day, without books and without
-memorising odds tables.
+A personal trainer for Texas Hold'em cash games. It takes someone who knows the
+rules but cannot yet price a decision, and over a year — fifteen to forty-five
+minutes a day — makes them able to work out the right play in about five
+seconds, from counting.
+
+**Cash games only. Six to ten players. 100 big blinds.** No tournaments, no ICM,
+no short stacks. Narrowing the world means every drill is a spot you will
+actually face.
 
 It runs entirely in your browser. There is no build step, no account, no server,
 and no dependencies. Your progress lives in local storage and is never sent
@@ -25,10 +30,10 @@ it once under Settings → Pages → Source → GitHub Actions; after that it li
 
 ```bash
 npm start              # http://localhost:8080
-npm test               # 83 unit tests, no dependencies
+npm test               # 122 unit tests, no dependencies
 npm run build          # regenerate the single-file build
 npm run smoke          # 27 browser checks (needs playwright + a running server)
-npm run verify:offline # prove the built file needs no network
+npm run verify:offline # prove the built file needs no network (9 checks)
 ```
 
 The dev server exists only because ES modules will not load from `file://`;
@@ -40,13 +45,22 @@ browser checks.
 
 ## The idea
 
-Most poker teaching hands you a chart and tells you to memorise it. That works
-until the situation differs slightly from the chart, at which point you have
-nothing, because you never learned what generated it.
+The odds charts and equity tools already exist, and they are unusable at the
+table: far too complicated, and impossible to memorise. That is not a flaw in
+you, it is a flaw in the format.
 
-This does the opposite. Every number is derived by counting, and every shortcut
-is withheld until you have worked it out the long way often enough that the
-shortcut feels like something you noticed rather than something you were told.
+So this course never asks you to recall a number. It teaches you to *derive*
+one, from counting, fast enough to use. Every number in poker turns out to be
+either a count or a single division.
+
+**Everything aims at five questions**, which are the only questions poker has:
+
+> **Bet or check? Call or fold? Raise — and how much?**
+
+Every level is one of those decisions. Each is answered the same way: work out
+what each action is worth in big blinds, and take the biggest number. Folding is
+always worth exactly zero, which is the baseline everything else is measured
+against.
 
 Three principles run through the whole thing.
 
@@ -63,11 +77,12 @@ four aces, so six ways to pick two of them". Equity is "count the good cards,
 divide by the cards you haven't seen". The maths is real, complete, and never
 presented as a formula to apply.
 
-**Derive the shortcut, then use it.** The rule of 2 and 4 appears in level 2,
-lesson 5 — after four lessons of counting outs and dividing by 47 by hand. By
-then a learner has effectively discovered it, and, crucially, they know where it
-breaks. A shortcut you understand the error bounds of is safe to use at speed. A
-shortcut you were handed is not.
+**Derive the shortcut, then use it.** The rule of 2 and 4 appears in level 1,
+lesson 8 — after four lessons of counting outs and dividing by 47 by hand. By
+then you have effectively discovered it, and, crucially, you know where it
+breaks (it runs several points high above about eight outs). A shortcut whose
+error bounds you know is safe to use at speed. A shortcut you were handed is a
+liability, because you cannot tell when it is lying to you.
 
 ---
 
@@ -81,10 +96,15 @@ budget:
    immediately.
 3. **Extra practice** on your weakest skills, to fill whatever time is left.
 
-You never choose what to review. The scheduler tracks 48 individual skills and
+You never choose what to review. The scheduler tracks 58 individual skills and
 brings each one back just before you would have forgotten it. Get something
 wrong and it returns tomorrow. Get it right repeatedly and it goes to three
 days, then a week, then a month.
+
+**Difficulty adapts.** Every drill is rated 2 to 5, and the app holds you near
+75% accuracy — right often enough to stay motivated, wrong often enough to be
+learning. Cruise through a session and the ceiling rises on its own. Being bored
+is treated as a failure, not as success.
 
 Every drill is generated fresh from a seed, so you never see the same hand
 twice and cannot pattern-match an answer key. Because the generator has the
@@ -96,18 +116,22 @@ paragraph.
 
 ## The year
 
-| Days | Level | What you can do by the end |
+| Days | Level | The decision it settles |
 |---|---|---|
-| 1–30 | Foundations | Name any hand instantly, find the nuts, read a board, know why position matters |
-| 31–90 | The Maths | Count outs honestly, price any bet in seconds, compute EV, separate decisions from results |
-| 91–150 | Before the Flop | Rebuild every opening chart from principles, defend the big blind correctly, 3-bet with a plan |
-| 151–240 | After the Flop | Bet with a reason and a size, defend at the right frequency, extract value on rivers |
-| 241–320 | The Opponent | Classify a player in an orbit, name the exploit, read ranges through three streets |
-| 321–365 | Independence | Run your own study loop and no longer need this |
+| 1–30 | What a Decision Is Worth | Put a number on any call, and know it beats folding |
+| 31–90 | Call or Fold | Never call because the pot is big, or fold because the hand feels weak |
+| 91–150 | Bet or Check | Know before acting whether betting beats checking, and by how much |
+| 151–240 | How Much | Justify every bet size with a number, before and after the flop |
+| 241–320 | Raise or Call | Know which is worth more with the same two cards, and how much to raise |
+| 321–365 | The Full Table | Do all of it in five seconds, six to ten handed |
 
-114 lessons, roughly 51 hours of material, spread deliberately thin. The gaps
+74 lessons, roughly 32 hours of material, spread deliberately thin. The gaps
 between new lessons are not padding — repetition on those days is where a skill
 actually consolidates.
+
+**Day one starts at the maths.** There are no hand-ranking quizzes and no card
+notation drills; the course assumes you know the rules. Those exist only as
+warm-ups if you actually get something wrong.
 
 Miss a fortnight and nothing is lost. The calendar is a promise about pace, not
 a debt. Sessions resume from what you actually know.
@@ -118,6 +142,7 @@ a debt. Sessions resume from what you actually know.
 
 ```
 src/engine/      the poker mathematics — no teaching, no UI
+  decisions.js   EV of fold/check/call/bet/raise, and sizing ladders
   cards.js       card representation, seeded RNG
   evaluator.js   5-to-7 card hand evaluation, plain-English descriptions
   equity.js      exact enumeration from the flop, Monte Carlo preflop
@@ -127,15 +152,16 @@ src/engine/      the poker mathematics — no teaching, no UI
   preflop.js     reference ranges, each with the reasoning that generates it
 
 src/learn/       the teaching layer
-  skills.js      48 skills in a prerequisite graph
-  exercises.js   35 procedural drill generators
-  curriculum/    114 authored lessons across 6 levels
+  skills.js      58 skills in a prerequisite graph
+  exercises.js   51 procedural drill generators, difficulty-tiered
+  drills-decisions.js  the bet/check/call/raise/fold drills
+  curriculum/    74 authored lessons across 6 levels
   srs.js         spaced repetition, scheduling skills rather than flashcards
   plan.js        the 365-day map, and today's session
   progress.js    profile state, streaks, mastery
 
 src/ui/          a dependency-free browser app
-test/            83 unit tests
+test/            122 unit tests
 tools/           static server, Playwright smoke test
 ```
 
@@ -156,22 +182,31 @@ and showing it card by card is worth more than any amount of warning about it.
 Beyond the usual unit tests, the suite simulates a learner doing a session every
 day for a year and asserts the course actually completes with real mastery, and
 a second learner who gets roughly half of everything wrong and still advances,
-with weak skills recycled back into their sessions. Every one of the 35
+with weak skills recycled back into their sessions. Every one of the 51
 generators is checked across 40 seeds for a question that is well formed,
 solvable, and graded consistently with its own stated answer.
+
+Three assertions guard the brief specifically: no rules-level drill may appear
+anywhere on the path, the majority of lessons must touch one of the five
+decisions, and no lesson may mention tournament play.
 
 ---
 
 ## Honest limitations
 
 - **Ranges are simplified.** They are solver-adjacent, not solver output, and
-  they are deliberately reconstructible from principles. A serious tournament
-  player needs proper solver work; this gets you to the point where solver work
-  would mean something.
-- **6-max cash, 100 big blinds.** Tournaments, ICM, and full-ring are barely
-  touched.
+  deliberately reconstructible from principles. This gets you to the point where
+  real solver work would mean something.
+- **The EV model stops at the current street.** It does not price the money you
+  win on later streets, which means semi-bluffs are worth *more* than it says.
+  The lessons state this rather than hiding it — a model whose limits you know
+  is usable; a black box is not.
+- **Fold frequencies are assumptions, not facts.** Drills state the villain's
+  fold rate out loud, because the honest lesson is that EV depends on a read.
 - **No hand-history import.** The sandbox lets you set up any spot by hand, but
   nothing reads your actual play.
+- **Progress is per-browser** unless you export it. Progress → *Download backup
+  file* gives you a JSON file you can restore anywhere.
 - **It cannot make you play.** The study loop only works alongside real hands.
   Roughly three parts play to one part study.
 

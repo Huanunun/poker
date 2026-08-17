@@ -108,6 +108,11 @@ function render() {
     case 'progress':
       mount(mainSlot, progressView({
         profile,
+        onImport: (restored) => {
+          profile = registerVisit(restored);
+          save(profile);
+          navigate('today');
+        },
         onReset: () => {
           profile = registerVisit(reset());
           save(profile);

@@ -2,6 +2,7 @@ import { suite, test, assert, assertEqual, assertClose } from './harness.js';
 import { LESSONS, LEVELS, validateCurriculum, totalMinutes, unitsOf } from '../src/learn/curriculum/index.js';
 import { buildPlan, buildSession, milestones, LEVEL_SCHEDULE, generatorsFor, uncoveredSkills, nextLesson } from '../src/learn/plan.js';
 import { SKILLS } from '../src/learn/skills.js';
+import { difficultyOf, generate } from '../src/learn/exercises.js';
 import { newRecord, review, strength, dueSkills, isDue } from '../src/learn/srs.js';
 import {
   createProfile, registerVisit, recordAnswer, completeLesson, isLevelUnlocked,
@@ -18,9 +19,54 @@ test('every lesson is well formed and references real skills and generators', ()
 });
 
 test('the course is substantial', () => {
-  assert(LESSONS.length >= 100, `only ${LESSONS.length} lessons`);
-  assert(totalMinutes() >= 2500, `only ${totalMinutes()} minutes of content`);
+  assert(LESSONS.length >= 70, `only ${LESSONS.length} lessons`);
+  assert(totalMinutes() >= 1800, `only ${totalMinutes()} minutes of content`);
   assertEqual(LEVELS.length, 6);
+});
+
+/**
+ * The course is for someone who knows the rules and cannot yet price a
+ * decision. Rules-level drills would waste their time, so the path must not
+ * contain any — they exist only as warm-ups when something is being got wrong.
+ */
+test('no rules-level filler appears anywhere in the path', () => {
+  const offenders = [];
+  for (const lesson of LESSONS) {
+    for (const drill of lesson.drills) {
+      if (difficultyOf(drill.gen) <= 1) offenders.push(`${lesson.id} uses ${drill.gen}`);
+    }
+  }
+  assertEqual(offenders.length, 0, `\n      ${offenders.join('\n      ')}\n`);
+});
+
+/** The five decisions are the point, so they must dominate the curriculum. */
+test('the curriculum is mostly about betting, calling, raising and folding', () => {
+  const decisionSkills = new Set(SKILLS.filter((s) => s.strand === 'decisions').map((s) => s.id));
+  const decisionLessons = LESSONS.filter((l) => decisionSkills.has(l.skill)
+    || l.drills.some((d) => {
+      try {
+        return decisionSkills.has(generate(d.gen, 7).skill);
+      } catch {
+        return false;
+      }
+    }));
+  const share = decisionLessons.length / LESSONS.length;
+  assert(share >= 0.5, `only ${Math.round(share * 100)}% of lessons touch the five decisions`);
+});
+
+/** Cash games only, 6-10 players, 100bb. Tournament material would be scope creep. */
+test('nothing in the course teaches tournament play', () => {
+  const banned = /\bICM\b|\btournament|\bfinal table\b|\bbubble\b|\bpayout jump/i;
+  const offenders = [];
+  for (const lesson of LESSONS) {
+    const text = [
+      lesson.title,
+      lesson.takeaway,
+      ...lesson.concepts.map((c) => `${c.title} ${c.body}`),
+    ].join(' ');
+    if (banned.test(text)) offenders.push(lesson.id);
+  }
+  assertEqual(offenders.length, 0, `tournament material in: ${offenders.join(', ')}`);
 });
 
 test('lesson ids are unique and ordered by level', () => {
