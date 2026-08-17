@@ -7,7 +7,11 @@ import {
   cardRow, derivation, emptyState, feltTable, playingCard, progressBar,
   rangeGrid, rangeLegend, readout, skillRow, tile,
 } from './components.js';
-import { LESSONS, LEVELS, unitsOf, totalMinutes } from '../learn/curriculum/index.js';
+import {
+  LESSONS, LEVELS, unitsOf, totalMinutes, localiseLesson, localiseLevel,
+  lessonTranslationCoverage,
+} from '../learn/curriculum/index.js';
+import { t, getLocale, coverage as uiCoverage } from '../i18n/index.js';
 import { DAILY_GOALS, buildPlan, milestones, nextLesson } from '../learn/plan.js';
 import { SKILLS, SKILL_BY_ID, STRANDS } from '../learn/skills.js';
 import { dueLabel, strength, strengthLabel } from '../learn/srs.js';
@@ -30,12 +34,7 @@ import { RFI, POSITION_INFO } from '../engine/preflop.js';
  * like it was not working. Naming the tier makes the adaptation legible, and
  * makes moving up feel like the achievement it is.
  */
-const DIFFICULTY_NAMES = {
-  2: 'Building',
-  3: 'Standard',
-  4: 'Sharp',
-  5: 'Hard',
-};
+const difficultyName = (tier) => t(`difficulty.${tier}`);
 
 /* ------------------------------------------------------------------ *
  * Today
@@ -43,49 +42,50 @@ const DIFFICULTY_NAMES = {
 
 export function todayView({ profile, onStart, onSetGoal }) {
   const root = el('div.stack');
-  const next = nextLesson(profile);
+  const rawNext = nextLesson(profile);
+  const next = rawNext ? localiseLesson(rawNext) : null;
   const day = courseDay(profile);
   const done = Object.keys(profile.completedLessons || {}).length;
 
   root.append(el('div.hero',
-    el('div.hero-day', `Day ${day} · ${done} of ${LESSONS.length} lessons`),
-    el('h1', next ? next.title : 'The course is complete'),
+    el('div.hero-day', t('today.day', { day, done, total: LESSONS.length })),
+    el('h1', next ? next.title : t('today.complete')),
     el('p', next
-      ? `${next.levelName} · ${next.unit} · about ${next.minutes} minutes`
-      : 'Keep going with daily practice — sessions carry on drawing from everything you have learned.'),
+      ? t('today.lessonMeta', { level: next.levelName, unit: next.unit, minutes: next.minutes })
+      : t('today.completeBody')),
     el('button.btn.btn-good.btn-lg', { onClick: onStart },
-      done === 0 ? 'Start your first lesson' : 'Start today\'s session'),
+      done === 0 ? t('today.startFirst') : t('today.startSession')),
   ));
 
   const strandValues = strandMastery(profile);
   root.append(el('div.tiles',
-    tile(profile.streak, 'day streak'),
-    tile(DIFFICULTY_NAMES[profile.ceiling ?? 3], 'difficulty'),
-    tile(pctText(overallMastery(profile)), 'mastery'),
-    tile(profile.stats?.attempted ? pctText(accuracy(profile)) : '—', 'accuracy'),
+    tile(profile.streak, t('stat.streak')),
+    tile(difficultyName(profile.ceiling ?? 3), t('stat.difficulty')),
+    tile(pctText(overallMastery(profile)), t('stat.mastery')),
+    tile(profile.stats?.attempted ? pctText(accuracy(profile)) : '—', t('stat.accuracy')),
   ));
 
   const weak = weakestSkills(profile, 5);
   if (weak.length) {
     root.append(el('div.card-panel',
-      el('div.section-title', 'Needs work'),
+      el('div.section-title', t('today.needsWork')),
       el('div', weak.map(({ skill, strength: s, record }) =>
         skillRow(skill, s, `${strengthLabel(s)} · ${dueLabel(record)}`))),
       el('p.faint', { style: { marginTop: '.8rem' } },
-        'These are pulled into your sessions automatically. You do not need to do anything about them.'),
+        t('today.needsWorkNote')),
     ));
   }
 
   root.append(el('div.card-panel',
-    el('div.section-title', 'Daily goal'),
+    el('div.section-title', t('today.dailyGoal')),
     el('div.goal-options', DAILY_GOALS.map((goal) => el('button', {
       class: `goal-option ${profile.dailyGoalMinutes === goal.minutes ? 'on' : ''}`,
       onClick: () => onSetGoal(goal.minutes),
     },
     el('span.goal-mins', `${goal.minutes}m`),
     el('span',
-      el('div', { style: { fontWeight: '650' } }, goal.name),
-      el('div.faint', goal.detail),
+      el('div', { style: { fontWeight: '650' } }, t(`goal.${goal.id}`)),
+      el('div.faint', t(`goal.${goal.id}Detail`)),
     ),
     ))),
   ));
@@ -97,13 +97,8 @@ export function todayView({ profile, onStart, onSetGoal }) {
 
 function howItWorksPanel() {
   return el('div.card-panel',
-    el('div.section-title', 'How this works'),
-    paragraphs(
-      'This course assumes you know the rules and cannot yet price a decision. So it starts at the maths — no hand rankings, no card notation — and every lesson works towards one of five questions: bet, check, call, raise, or fold, and how much.\n\n'
-      + 'Nothing is memorised. Those odds charts are impossible to hold in your head, and they should be: the goal here is to derive the number at the table in about five seconds, from counting. Shortcuts arrive only after you have worked them out the long way often enough that they feel obvious — and you learn where each one lies to you.\n\n'
-      + 'Cash games, six to ten players, 100 big blinds. No tournaments.\n\n'
-      + 'Skills you get wrong come back tomorrow; skills you get right come back in three days, then a week, then a month. If you find it too easy it gets harder on its own, and you never have to track any of this.',
-    ),
+    el('div.section-title', t('today.howItWorks')),
+    paragraphs(t('today.howItWorksBody')),
   );
 }
 
@@ -116,11 +111,12 @@ export function pathView({ profile, onStartLesson }) {
   const progress = levelProgress(profile);
 
   root.append(el('div.card-panel',
-    el('h1', 'The path'),
-    el('p.muted', `${LESSONS.length} lessons across 6 levels, about ${Math.round(totalMinutes() / 60)} hours of material, designed to be spread across a year at 15 to 45 minutes a day.`),
+    el('h1', t('path.title')),
+    el('p.muted', t('path.summary', { lessons: LESSONS.length, hours: Math.round(totalMinutes() / 60) })),
   ));
 
-  for (const level of LEVELS) {
+  for (const rawLevel of LEVELS) {
+    const level = localiseLevel(rawLevel);
     const p = progress.find((x) => x.level === level.level);
     const locked = !p.unlocked;
     const card = el(`div.level-card${locked ? '.locked' : ''}${p.complete ? '.done' : ''}`);
@@ -147,11 +143,13 @@ export function pathView({ profile, onStartLesson }) {
 
     if (locked) {
       body.append(el('p.muted', { style: { marginTop: '.8rem' } },
-        `Finish level ${level.level - 1} to unlock this.`));
+        t('path.locked', { n: level.level - 1 })));
     } else {
       for (const unit of unitsOf(level.level)) {
-        body.append(el('div.unit-name', unit.name));
-        for (const lesson of unit.lessons) {
+        const unitName = localiseLesson({ ...unit.lessons[0], level: rawLevel.level }).unit;
+        body.append(el('div.unit-name', unitName));
+        for (const rawLesson of unit.lessons) {
+          const lesson = localiseLesson({ ...rawLesson, level: rawLevel.level });
           const isDone = Boolean(profile.completedLessons?.[lesson.id]);
           body.append(el('button', {
             class: `lesson-row ${isDone ? 'done' : ''} ${lesson.checkpoint ? 'checkpoint' : ''}`,
@@ -160,7 +158,7 @@ export function pathView({ profile, onStartLesson }) {
           el('span.lesson-check', isDone ? '✓' : ''),
           el('span', { style: { flex: '1' } },
             lesson.title,
-            lesson.checkpoint && el('span.badge.accent', { style: { marginLeft: '.5rem' } }, 'checkpoint'),
+            lesson.checkpoint && el('span.badge.accent', { style: { marginLeft: '.5rem' } }, t('path.checkpoint')),
           ),
           el('span.lesson-mins', `${lesson.minutes}m`),
           ));
@@ -179,19 +177,21 @@ export function pathView({ profile, onStartLesson }) {
 
 function planPanel() {
   const panel = el('div.card-panel',
-    el('div.section-title', 'The year ahead'),
-    el('p.muted', 'Where a learner doing one session a day arrives, and when.'),
+    el('div.section-title', t('path.yearAhead')),
+    el('p.muted', t('path.yearAheadNote')),
   );
 
   for (const m of milestones()) {
     panel.append(el('div.skill-row',
-      el('span.badge.accent', `Day ${m.day}`),
-      el('span.skill-name', el('strong', m.levelName), el('div.faint', m.promise)),
+      el('span.badge.accent', t('path.dayLabel', { day: m.day })),
+      el('span.skill-name',
+        el('strong', localiseLevel({ level: m.level, name: m.levelName, promise: m.promise }).name),
+        el('div.faint', localiseLevel({ level: m.level, name: m.levelName, promise: m.promise }).promise)),
     ));
   }
 
   panel.append(el('p.faint', { style: { marginTop: '.8rem' } },
-    'Miss a week and nothing is lost. Sessions resume from what you actually know, not from where the calendar says you should be.'));
+    t('path.missNote')));
   return panel;
 }
 
@@ -204,21 +204,21 @@ export function progressView({ profile, onReset, onImport }) {
   const now = Date.now();
 
   root.append(el('div.card-panel',
-    el('h1', 'Progress'),
+    el('h1', t('progress.title')),
     el('div.tiles', { style: { marginTop: '1rem' } },
-      tile(courseDay(profile), 'days active'),
-      tile(profile.longestStreak, 'best streak'),
-      tile(profile.stats?.attempted || 0, 'questions'),
-      tile(pctText(overallMastery(profile, now)), 'mastery'),
+      tile(courseDay(profile), t('stat.daysActive')),
+      tile(profile.longestStreak, t('stat.bestStreak')),
+      tile(profile.stats?.attempted || 0, t('stat.questions')),
+      tile(pctText(overallMastery(profile, now)), t('stat.mastery')),
     ),
   ));
 
   const strands = strandMastery(profile, now);
   root.append(el('div.card-panel',
-    el('div.section-title', 'Mastery by area'),
+    el('div.section-title', t('progress.byArea')),
     el('div', Object.entries(STRANDS).map(([id, strand]) => el('div.skill-row',
       el('span.skill-dot', { style: { background: `var(--${strand.colour})` } }),
-      el('span.skill-name', strand.name),
+      el('span.skill-name', t(`strand.${id}`)),
       el('span.faint', pctText(strands[id] || 0)),
       el('span.skill-bar', progressBar(strands[id] || 0, (strands[id] || 0) >= 0.7 ? 'good' : '')),
     ))),
@@ -226,12 +226,12 @@ export function progressView({ profile, onReset, onImport }) {
 
   const started = SKILLS.filter((s) => profile.skills?.[s.id]?.attempts);
   if (started.length) {
-    const panel = el('div.card-panel', el('div.section-title', `Every skill (${started.length} of ${SKILLS.length} started)`));
+    const panel = el('div.card-panel', el('div.section-title', t('progress.allSkills', { started: started.length, total: SKILLS.length })));
     const byStrand = {};
     for (const skill of started) (byStrand[skill.strand] ||= []).push(skill);
 
     for (const [strandId, skills] of Object.entries(byStrand)) {
-      panel.append(el('div.unit-name', STRANDS[strandId].name));
+      panel.append(el('div.unit-name', t(`strand.${strandId}`)));
       for (const skill of skills) {
         const record = profile.skills[skill.id];
         const s = strength(record, now);
@@ -240,12 +240,12 @@ export function progressView({ profile, onReset, onImport }) {
     }
     root.append(panel);
   } else {
-    root.append(el('div.card-panel', emptyState('📊', 'Nothing tracked yet', 'Finish a session and your skill strengths appear here.')));
+    root.append(el('div.card-panel', emptyState('📊', t('progress.nothingYet'), t('progress.nothingYetBody'))));
   }
 
   if (profile.history?.length) {
     root.append(el('div.card-panel',
-      el('div.section-title', 'Lessons completed'),
+      el('div.section-title', t('progress.lessonsCompleted')),
       el('div.heatmap', profile.history.slice(-120).map((h) => el('div', {
         class: `heat-cell ${h.score >= 0.9 ? 'l3' : h.score >= 0.7 ? 'l2' : 'l1'}`,
         title: `${h.lessonId} — ${Math.round(h.score * 100)}%`,
@@ -253,17 +253,27 @@ export function progressView({ profile, onReset, onImport }) {
     ));
   }
 
+  if (getLocale() === 'zh') {
+    const uiPct = Math.round(uiCoverage('zh') * 100);
+    const lessonPct = Math.round(lessonTranslationCoverage() * 100);
+    root.append(el('div.card-panel',
+      el('div.section-title', t('lang.switch')),
+      el('p.muted', t('lang.coverage', { percent: `${Math.round((uiPct + lessonPct) / 2)}%` })),
+      el('p.faint', `界面 ${uiPct}% · 课程内容 ${lessonPct}% · 练习题目仍为英文`),
+    ));
+  }
+
   root.append(backupPanel({ profile, onImport }));
 
   root.append(el('div.card-panel',
-    el('div.section-title', 'Start over'),
-    el('p.muted', 'Erasing is permanent. Save a backup first if there is any chance you want this back.'),
+    el('div.section-title', t('progress.startOver')),
+    el('p.muted', t('progress.startOverBody')),
     el('button.btn', {
       style: { marginTop: '.6rem' },
       onClick: () => {
-        if (confirm('Erase all progress and start over? This cannot be undone.')) onReset();
+        if (confirm(t('progress.resetConfirm'))) onReset();
       },
-    }, 'Reset all progress'),
+    }, t('progress.reset')),
   ));
 
   return root;
@@ -280,8 +290,8 @@ export function progressView({ profile, onReset, onImport }) {
 function backupPanel({ profile, onImport }) {
   const status = el('div');
   const panel = el('div.card-panel',
-    el('div.section-title', 'Save your progress'),
-    el('p.muted', 'Everything is stored in this browser and never sent anywhere. Save a backup file to move your progress to another browser or machine, or to keep it safe.'),
+    el('div.section-title', t('progress.save')),
+    el('p.muted', t('progress.saveBody')),
   );
 
   const downloadBtn = el('button.btn.btn-primary', {
@@ -296,12 +306,12 @@ function backupPanel({ profile, onImport }) {
         link.click();
         link.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        showStatus(`Saved as ${name}. Keep it somewhere you will find it again.`, 'correct');
+        showStatus(t('progress.saved', { name }), 'correct');
       } catch {
-        showStatus('This browser blocked the download. Use "Show backup text" below and copy it instead.', 'neutral');
+        showStatus(t('progress.downloadBlocked'), 'neutral');
       }
     },
-  }, 'Download backup file');
+  }, t('progress.download'));
 
   const showTextBtn = el('button.btn', {
     onClick: () => {
@@ -315,13 +325,13 @@ function backupPanel({ profile, onImport }) {
         },
       }, exportProfile(profile));
       status.replaceChildren(
-        el('p.faint', { style: { marginTop: '.6rem' } }, 'Select all of this and copy it somewhere safe.'),
+        el('p.faint', { style: { marginTop: '.6rem' } }, t('progress.copyNote')),
         box,
       );
       box.focus();
       box.select();
     },
-  }, 'Show backup text');
+  }, t('progress.showText'));
 
   const fileInput = el('input', {
     type: 'file',
@@ -335,13 +345,13 @@ function backupPanel({ profile, onImport }) {
     },
   });
 
-  const restoreBtn = el('button.btn', { onClick: () => fileInput.click() }, 'Restore from file');
+  const restoreBtn = el('button.btn', { onClick: () => fileInput.click() }, t('progress.restoreFile'));
 
   const pasteBtn = el('button.btn.btn-ghost', {
     onClick: () => {
       const box = el('textarea', {
         rows: '6',
-        placeholder: 'Paste your backup text here…',
+        placeholder: t('progress.pastePlaceholder'),
         style: {
           width: '100%', marginTop: '.6rem', fontFamily: 'var(--mono)', fontSize: '.75rem',
           background: 'var(--bg-sunken)', color: 'var(--text)',
@@ -353,11 +363,11 @@ function backupPanel({ profile, onImport }) {
         el('button.btn.btn-primary', {
           style: { marginTop: '.6rem' },
           onClick: () => applyImport(box.value),
-        }, 'Restore this'),
+        }, t('progress.restoreThis')),
       );
       box.focus();
     },
-  }, 'Paste backup text');
+  }, t('progress.pasteText'));
 
   function applyImport(text) {
     const result = importProfile(text);
@@ -365,7 +375,7 @@ function backupPanel({ profile, onImport }) {
       showStatus(result.error, 'wrong');
       return;
     }
-    if (!confirm(`${result.summary}\n\nThis replaces your current progress. Continue?`)) return;
+    if (!confirm(t('progress.replaceConfirm', { summary: result.summary }))) return;
     onImport(result.profile);
   }
 
@@ -397,8 +407,8 @@ export function sandboxView() {
   const root = el('div.stack');
 
   root.append(el('div.card-panel',
-    el('h1', 'Sandbox'),
-    el('p.muted', 'Bring a hand that puzzled you. Change one thing at a time and watch what happens to the numbers.'),
+    el('h1', t('sandbox.title')),
+    el('p.muted', t('sandbox.intro')),
   ));
 
   root.append(equityTool());
@@ -408,12 +418,12 @@ export function sandboxView() {
 }
 
 function equityTool() {
-  const panel = el('div.card-panel', el('div.section-title', 'Equity calculator'));
+  const panel = el('div.card-panel', el('div.section-title', t('sandbox.equity')));
   const output = el('div');
 
-  const heroInput = field('Your hand', 'AcKc');
-  const villainInput = field('Their hand or range', 'QQ');
-  const boardInput = field('Board (leave blank for preflop)', '');
+  const heroInput = field(t('sandbox.yourHand'), 'AcKc');
+  const villainInput = field(t('sandbox.theirHand'), 'QQ');
+  const boardInput = field(t('sandbox.board'), '');
 
   const run = () => {
     try {
@@ -442,9 +452,9 @@ function equityTool() {
         against = `against ${range.size} hands (${size.combos} combinations, ${pctText(size.percent, 1)} of all hands)`;
       }
 
-      const rows = [[pctText(result.equity, 1), 'your equity']];
+      const rows = [[pctText(result.equity, 1), t('sandbox.yourEquity')]];
       if (result.win !== undefined) {
-        rows.push([pctText(result.win, 1), 'you win'], [pctText(result.tie, 1), 'you chop']);
+        rows.push([pctText(result.win, 1), t('sandbox.youWin')], [pctText(result.tie, 1), t('sandbox.youChop')]);
       }
 
       const detail = [];
@@ -464,7 +474,7 @@ function equityTool() {
       output.replaceChildren(
         readout(rows),
         el('p.faint', { style: { marginTop: '.7rem' } },
-          `${against}. ${result.exact ? `Exact, from all ${result.trials} runouts.` : `Estimated from ${result.trials} simulations.`}`),
+          `${against} ${result.exact ? t('sandbox.exactNote', { trials: result.trials }) : t('sandbox.estimateNote', { trials: result.trials })}`),
         detail.length ? el('div.derivation', { style: { marginTop: '.8rem' } }, el('ol', detail.map((d) => el('li', d)))) : null,
       );
     } catch (err) {
@@ -482,11 +492,11 @@ function equityTool() {
 }
 
 function oddsTool() {
-  const panel = el('div.card-panel', el('div.section-title', 'Pot odds and price'));
+  const panel = el('div.card-panel', el('div.section-title', t('sandbox.potOdds')));
   const output = el('div');
-  const potInput = field('Pot before their bet', '100');
-  const betInput = field('Their bet', '50');
-  const outsInput = field('Your outs (optional)', '9');
+  const potInput = field(t('sandbox.potBefore'), '10');
+  const betInput = field(t('sandbox.theirBet'), '5');
+  const outsInput = field(t('sandbox.yourOuts'), '9');
 
   const run = () => {
     const pot = Number(potInput.input.value) || 0;
@@ -494,7 +504,7 @@ function oddsTool() {
     const outs = Number(outsInput.input.value) || 0;
 
     if (pot <= 0 || bet <= 0) {
-      output.replaceChildren(el('p.faint', 'Enter a pot and a bet.'));
+      output.replaceChildren(el('p.faint', t('sandbox.enterPotAndBet')));
       return;
     }
 
@@ -505,9 +515,9 @@ function oddsTool() {
 
     const children = [
       readout([
-        [pctText(p.breakEven, 1), 'equity needed'],
-        [`${round(bet / pot * 100, 0)}%`, 'of pot'],
-        [pctText(mdf.mdf, 0), 'you must defend'],
+        [pctText(p.breakEven, 1), t('sandbox.equityNeeded')],
+        [`${round(bet / pot * 100, 0)}%`, t('sandbox.ofPot')],
+        [pctText(mdf.mdf, 0), t('sandbox.mustDefend')],
       ]),
       el('div.derivation', { style: { marginTop: '.8rem' } }, el('ol', p.steps.map((s) => el('li', s)))),
     ];
@@ -516,8 +526,8 @@ function oddsTool() {
       const verdictTurn = turn.exact >= p.breakEven;
       children.push(el('div', { style: { marginTop: '.8rem' } },
         readout([
-          [pctText(turn.exact, 1), 'one card'],
-          [pctText(flop.exact, 1), 'two cards'],
+          [pctText(turn.exact, 1), t('sandbox.oneCard')],
+          [pctText(flop.exact, 1), t('sandbox.twoCards')],
         ]),
         el('p', { style: { marginTop: '.7rem' }, html: richText(
           `With ${outs} outs and one card to come you have **${pctText(turn.exact, 1)}** against a price of **${pctText(p.breakEven, 1)}** — `
@@ -539,7 +549,7 @@ function oddsTool() {
 }
 
 function rangeTool() {
-  const panel = el('div.card-panel', el('div.section-title', 'Range explorer'));
+  const panel = el('div.card-panel', el('div.section-title', t('sandbox.rangeExplorer')));
   const selected = new Set(parseRange(RFI.BTN));
   const info = el('div');
   const gridHolder = el('div');
@@ -557,11 +567,11 @@ function rangeTool() {
     const size = rangeSize(selected);
     info.replaceChildren(
       readout([
-        [String(selected.size), 'hands'],
-        [String(size.combos), 'combos'],
-        [pctText(size.percent, 1), 'of all hands'],
+        [String(selected.size), t('sandbox.hands')],
+        [String(size.combos), t('sandbox.combos')],
+        [pctText(size.percent, 1), t('sandbox.ofAllHands')],
       ]),
-      el('p.faint', { style: { marginTop: '.6rem', wordBreak: 'break-word' } }, rangeToString(selected) || 'Nothing selected.'),
+      el('p.faint', { style: { marginTop: '.6rem', wordBreak: 'break-word' } }, rangeToString(selected) || t('sandbox.nothingSelected')),
     );
   };
 
@@ -575,7 +585,7 @@ function rangeTool() {
     }, pos)),
     el('button.btn.btn-sm', {
       onClick: () => { selected.clear(); draw(); },
-    }, 'Clear'),
+    }, t('sandbox.clear')),
   );
 
   draw();

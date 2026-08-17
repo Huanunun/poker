@@ -11,6 +11,8 @@
  */
 
 import { el, paragraphs, richText, announce } from './dom.js';
+import { t } from '../i18n/index.js';
+import { localiseLesson } from '../learn/curriculum/index.js';
 import { progressBar } from './components.js';
 import { renderExercise } from './exercise.js';
 import {
@@ -40,7 +42,7 @@ export function sessionView({ session, getProfile, setProfile, onExit }) {
 
   const drawHead = () => {
     head.replaceChildren(
-      el('button.btn.btn-ghost.btn-sm', { onClick: confirmExit, 'aria-label': 'Leave session' }, '✕'),
+      el('button.btn.btn-ghost.btn-sm', { onClick: confirmExit, 'aria-label': t('session.leave') }, '✕'),
       progressBar(index / screens.length),
       el('span.faint', `${Math.min(index + 1, screens.length)}/${screens.length}`),
     );
@@ -98,7 +100,7 @@ export function sessionView({ session, getProfile, setProfile, onExit }) {
     const { exercise } = screen;
     body.replaceChildren(
       el('div.card-panel',
-        screen.label && el('div.section-title', screen.label),
+        el('div.section-title', screen.label || localiseLesson(screen.lesson).title),
         renderExercise(exercise, ({ correct, score }) => {
           noteResult(exercise.skill, correct);
           if (screen.reviewSkill) {
@@ -139,31 +141,35 @@ export function sessionView({ session, getProfile, setProfile, onExit }) {
  * ------------------------------------------------------------------ */
 
 function conceptScreen(screen, onNext) {
-  const { concept, lesson, position, total } = screen;
+  const { lesson: rawLesson, position, total, conceptIndex } = screen;
+  const lesson = localiseLesson(rawLesson);
+  const concept = lesson.concepts[conceptIndex];
   return el('div.card-panel.concept',
-    el('div.concept-kicker', `${lesson.levelName} · ${lesson.unit} · idea ${position} of ${total}`),
+    el('div.concept-kicker', t('session.ideaOf', {
+      level: lesson.levelName, unit: lesson.unit, n: position, total,
+    })),
     el('h2', concept.title),
     paragraphs(concept.body, 'concept-body'),
-    el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1.4rem' }, onClick: onNext }, 'Got it'),
+    el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1.4rem' }, onClick: onNext }, t('session.gotIt')),
   );
 }
 
 function takeawayScreen(screen, onNext) {
-  const { lesson } = screen;
+  const lesson = localiseLesson(screen.lesson);
   return el('div.card-panel.concept',
-    el('div.concept-kicker', 'Take this away'),
+    el('div.concept-kicker', t('session.takeaway')),
     el('h2', lesson.title),
     el('div.takeaway', { style: { marginTop: '1rem' }, html: richText(lesson.takeaway) }),
-    el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1.4rem' }, onClick: onNext }, 'Finish lesson'),
+    el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1.4rem' }, onClick: onNext }, t('session.finishLesson')),
   );
 }
 
 function summaryScreen({ answeredCount, correctCount, accuracy, minutes, profile, onExit }) {
   const verdict = accuracy >= 0.9
-    ? { icon: '🎯', title: 'Sharp session', note: 'That accuracy means the ideas are landing. The spacing algorithm will push these skills further out and bring you something harder.' }
+    ? { icon: '🎯', title: t('summary.sharp'), note: t('summary.sharpNote') }
     : accuracy >= 0.7
-      ? { icon: '✓', title: 'Solid work', note: 'A few misses is exactly right. If everything were easy you would not be learning anything.' }
-      : { icon: '🌱', title: 'Session done', note: 'A tough one. The skills you missed are already scheduled to come back tomorrow, which is precisely how this is meant to work.' };
+      ? { icon: '✓', title: t('summary.solid'), note: t('summary.solidNote') }
+      : { icon: '🌱', title: t('summary.done'), note: t('summary.doneNote') };
 
   return el('div.card-panel.center',
     el('div', { style: { fontSize: '3rem' } }, verdict.icon),
@@ -173,20 +179,20 @@ function summaryScreen({ answeredCount, correctCount, accuracy, minutes, profile
     el('div.result-grid', { style: { margin: '1.5rem 0' } },
       el('div',
         el('div.summary-big', `${correctCount}/${answeredCount}`),
-        el('div.tile-label', 'correct'),
+        el('div.tile-label', t('summary.correctLabel')),
       ),
       el('div',
         el('div.summary-big', `${Math.round(accuracy * 100)}%`),
-        el('div.tile-label', 'accuracy'),
+        el('div.tile-label', t('summary.accuracyLabel')),
       ),
       el('div',
         el('div.summary-big', String(profile.streak)),
-        el('div.tile-label', profile.streak === 1 ? 'day streak' : 'day streak'),
+        el('div.tile-label', t('summary.streakLabel')),
       ),
     ),
 
-    el('p.faint', `About ${minutes} minute${minutes === 1 ? '' : 's'}. Total XP ${profile.xp}.`),
-    el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1rem' }, onClick: onExit }, 'Done for today'),
+    el('p.faint', t('summary.time', { minutes, xp: profile.xp })),
+    el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1rem' }, onClick: onExit }, t('summary.doneForToday')),
   );
 }
 
@@ -205,24 +211,25 @@ function flatten(session) {
         screens.push({
           type: 'concept',
           concept,
+          conceptIndex: i,
           lesson,
           position: i + 1,
           total: lesson.concepts.length,
         });
       });
       for (const exercise of item.exercises) {
-        screens.push({ type: 'exercise', exercise, label: lesson.title });
+        screens.push({ type: 'exercise', exercise, lesson });
       }
       screens.push({ type: 'takeaway', lesson });
     } else if (item.type === 'review') {
       screens.push({
         type: 'exercise',
         exercise: item.exercise,
-        label: 'Review',
+        label: t('session.review'),
         reviewSkill: item.skill,
       });
     } else {
-      screens.push({ type: 'exercise', exercise: item.exercise, label: 'Practice' });
+      screens.push({ type: 'exercise', exercise: item.exercise, label: t('session.practice') });
     }
   }
 

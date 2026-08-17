@@ -8,6 +8,12 @@
 
 import { el, mount } from './dom.js';
 import { statPill } from './components.js';
+import { registerStrings, setLocale, getLocale, otherLocale, localeInfo, t, coverage } from '../i18n/index.js';
+import { UI_EN, UI_ZH } from '../i18n/ui.js';
+import { lessonTranslationCoverage } from '../learn/curriculum/index.js';
+
+registerStrings('en', UI_EN);
+registerStrings('zh', UI_ZH);
 import { pathView, progressView, sandboxView, todayView } from './views.js';
 import { sessionView } from './session.js';
 import { buildSession } from '../learn/plan.js';
@@ -15,17 +21,21 @@ import { load, registerVisit, save, reset } from '../learn/progress.js';
 import { LESSON_BY_ID } from '../learn/curriculum/index.js';
 import { generate } from '../learn/exercises.js';
 
-const TABS = [
-  { id: 'today', label: 'Today' },
-  { id: 'path', label: 'Path' },
-  { id: 'progress', label: 'Progress' },
-  { id: 'sandbox', label: 'Sandbox' },
-];
+const TAB_IDS = ['today', 'path', 'progress', 'sandbox'];
 
 const app = document.getElementById('app');
 
 let profile = registerVisit(load());
+// The learner's language is part of their profile, so it survives a reload and
+// travels with an exported backup.
+setLocale(profile.locale || getLocale());
+applyLocaleToDocument();
 save(profile);
+
+/** Keep the document's lang attribute in step, so the CJK font stack applies. */
+function applyLocaleToDocument() {
+  document.documentElement.setAttribute('lang', getLocale());
+}
 
 let route = { name: 'today' };
 
@@ -62,7 +72,7 @@ function shell() {
       el('div.topbar-inner',
         el('button.brand', { onClick: () => navigate('today') },
           el('span.brand-mark', '♠'),
-          el('span', 'Hold\'em Dojo'),
+          el('span', t('app.name')),
         ),
         topbarSlot,
       ),
@@ -72,18 +82,34 @@ function shell() {
   );
 }
 
+function switchLanguage() {
+  const next = otherLocale();
+  setLocale(next);
+  applyLocaleToDocument();
+  setProfile({ ...profile, locale: next });
+  // A session in progress keeps its current question in the old language;
+  // everything generated afterwards uses the new one. Re-rendering mid-question
+  // would throw away an answer the learner had already typed.
+  render();
+}
+
 function renderChrome() {
   mount(topbarSlot,
+    el('button.btn.btn-sm.lang-toggle', {
+      onClick: switchLanguage,
+      title: t('lang.switch'),
+      'aria-label': `${t('lang.switch')}: ${localeInfo(otherLocale()).native}`,
+    }, localeInfo(otherLocale()).short),
     statPill('🔥', profile.streak, 'streak'),
     statPill('◆', profile.xp, 'xp'),
   );
 
   const inSession = route.name === 'session';
   navSlot.style.display = inSession ? 'none' : '';
-  mount(navSlot, TABS.map((tab) => el('button', {
-    'aria-current': route.name === tab.id ? 'page' : null,
-    onClick: () => navigate(tab.id),
-  }, tab.label)));
+  mount(navSlot, TAB_IDS.map((id) => el('button', {
+    'aria-current': route.name === id ? 'page' : null,
+    onClick: () => navigate(id),
+  }, t(`nav.${id}`))));
 }
 
 function render() {
@@ -190,9 +216,9 @@ render();
 window.addEventListener('error', (event) => {
   if (!mainSlot) return;
   mount(mainSlot, el('div.card-panel',
-    el('h2', 'Something broke'),
-    el('p.muted', 'Your progress is saved. Reloading usually fixes it.'),
+    el('h2', t('error.title')),
+    el('p.muted', t('error.body')),
     el('pre', { style: { overflow: 'auto', fontSize: '.8rem', color: 'var(--bad)' } }, String(event.message)),
-    el('button.btn.btn-primary', { onClick: () => location.reload() }, 'Reload'),
+    el('button.btn.btn-primary', { onClick: () => location.reload() }, t('error.reload')),
   ));
 });

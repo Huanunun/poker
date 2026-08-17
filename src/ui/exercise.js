@@ -16,6 +16,7 @@
  */
 
 import { el, line, paragraphs, richText, announce } from './dom.js';
+import { t } from '../i18n/index.js';
 import { cardRow, feltTable, playingCard, rangeGrid, rangeLegend } from './components.js';
 import { grade } from '../learn/exercises.js';
 
@@ -76,7 +77,7 @@ function renderStepChain(exercise, onComplete) {
 
     const step = exercise.steps[index];
     current.replaceChildren(
-      el('div.step-counter', `Step ${index + 1} of ${exercise.steps.length}`),
+      el('div.step-counter', t('session.stepOf', { n: index + 1, total: exercise.steps.length })),
       el('div.exercise-prompt', { html: richText(step.prompt) }),
       renderSingle(step, exercise, (correct, displayAnswer) => {
         results.push(correct);
@@ -92,7 +93,7 @@ function renderStepChain(exercise, onComplete) {
         showStep();
       }),
     );
-    announce(`Step ${index + 1} of ${exercise.steps.length}`);
+    announce(t('session.stepOf', { n: index + 1, total: exercise.steps.length }));
   };
 
   const finish = () => {
@@ -106,7 +107,7 @@ function renderStepChain(exercise, onComplete) {
       el('button.btn.btn-primary.btn-lg', {
         style: { marginTop: '1rem' },
         onClick: () => onComplete({ correct: allRight, score }),
-      }, 'Continue'),
+      }, t('session.continue')),
     );
   };
 
@@ -147,9 +148,9 @@ function renderSingle(item, exercise, onAnswered) {
     ? el('button.btn.btn-ghost.btn-sm', {
       onClick: () => {
         hintBtn.remove();
-        feedbackArea.append(el('div.hint-box', { html: `<strong>Hint:</strong> ${richText(item.hint)}` }));
+        feedbackArea.append(el('div.hint-box', { html: `<strong>${t('session.hint')}:</strong> ${richText(item.hint)}` }));
       },
-    }, 'Show a hint')
+    }, t('session.showHint'))
     : null;
 
   const checkBtn = el('button.btn.btn-primary', {
@@ -164,16 +165,16 @@ function renderSingle(item, exercise, onAnswered) {
       if (hintBtn) hintBtn.remove();
 
       feedbackArea.replaceChildren(buildFeedback(item, result, input.describe(response)));
-      announce(result.correct ? 'Correct' : 'Not quite');
+      announce(result.correct ? t('session.correct') : t('session.notQuite'));
 
       const nextBtn = el('button.btn.btn-primary.btn-lg', {
         style: { marginTop: '1rem' },
         onClick: () => onAnswered(result.correct, input.describe(response)),
-      }, 'Continue');
+      }, t('session.continue'));
       feedbackArea.append(nextBtn);
       nextBtn.focus();
     },
-  }, 'Check');
+  }, t('session.check'));
 
   controls.append(checkBtn, el('span.spacer'), hintBtn);
   wrap.append(inputArea, controls, feedbackArea);
@@ -193,18 +194,18 @@ function buildFeedback(item, result, given) {
     : [];
 
   const head = result.correct
-    ? '✓ Correct'
+    ? `✓ ${t('session.correct')}`
     : result.close
-      ? '✗ Close, but not quite'
-      : '✗ Not quite';
+      ? `✗ ${t('session.closeButNot')}`
+      : `✗ ${t('session.notQuite')}`;
 
   const body = el('div.feedback-body');
 
   if (!result.correct) {
-    body.append(el('p', { html: `<strong>You said ${given}.</strong> ${richText(correctAnswerText(item))}` }));
+    body.append(el('p', { html: `<strong>${richText(t('session.youSaid', { answer: given }))}</strong> ${richText(correctAnswerText(item))}` }));
   }
   if (result.errors !== undefined && !result.correct) {
-    body.append(el('p.muted', `You missed ${result.missing} hands and included ${result.extra} that should not be there.`));
+    body.append(el('p.muted', t('session.gridFeedback', { missing: result.missing, extra: result.extra })));
   }
   for (const text of explain) body.append(paragraphs(text));
 
@@ -217,15 +218,15 @@ function buildFeedback(item, result, given) {
 function correctAnswerText(item) {
   switch (item.kind) {
     case 'choice':
-      return `The answer is **${item.options[item.answer]}**.`;
+      return t('session.answerIs', { answer: `**${item.options[item.answer]}**` });
     case 'numeric':
-      return `The answer is **${item.answer}${item.unit ? ` ${item.unit}` : ''}**.`;
+      return t('session.answerIs', { answer: `**${item.answer}${item.unit ? ` ${item.unit}` : ''}**` });
     case 'slider':
-      return `The answer is **${item.answer}%**.`;
+      return t('session.answerIs', { answer: `**${item.answer}%**` });
     case 'multi':
-      return `The answer is **${item.answer.map((i) => item.options[i]).join(', ') || 'none of them'}**.`;
+      return t('session.answerIs', { answer: `**${item.answer.map((i) => item.options[i]).join(', ') || t('session.nothing')}**` });
     default:
-      return 'The correct selection is shown above.';
+      return t('session.selectionShown');
   }
 }
 
@@ -274,7 +275,7 @@ function choiceInput(item, onChange) {
         else if (i === chosen) b.classList.add('wrong');
       });
     },
-    describe: (r) => (r === null ? 'nothing' : item.options[r]),
+    describe: (r) => (r === null ? t('session.nothing') : item.options[r]),
   };
 }
 
@@ -295,7 +296,7 @@ function multiInput(item, onChange) {
 
   return {
     node: el('div',
-      el('p.faint', 'Select all that apply, then check.'),
+      el('p.faint', t('session.selectAll')),
       el('div.options', buttons),
     ),
     lock: () => {
@@ -307,7 +308,7 @@ function multiInput(item, onChange) {
         else if (picked.has(i)) b.classList.add('wrong');
       });
     },
-    describe: (r) => (r?.length ? r.map((i) => item.options[i]).join(', ') : 'nothing'),
+    describe: (r) => (r?.length ? r.map((i) => item.options[i]).join(', ') : t('session.nothing')),
   };
 }
 
@@ -386,7 +387,7 @@ function cardsInput(item, exercise, onChange) {
   };
 
   const container = el('div',
-    el('p.faint', `Choose ${item.selectCount}.`),
+    el('p.faint', t('session.chooseN', { n: item.selectCount })),
     render(),
   );
 
@@ -404,9 +405,9 @@ function cardsInput(item, exercise, onChange) {
         dim: !want.has(card),
       })));
       container.replaceChild(row, container.lastChild);
-      container.append(el('p.faint', { style: { marginTop: '.5rem' } }, 'Highlighted cards are the five that play.'));
+      container.append(el('p.faint', { style: { marginTop: '.5rem' } }, t('session.cardsHighlighted')));
     },
-    describe: (r) => (r?.length ? `${r.length} cards` : 'nothing'),
+    describe: (r) => (r?.length ? `${r.length}` : t('session.nothing')),
   };
 }
 
@@ -429,7 +430,7 @@ function gridInput(item, onChange) {
       }),
       rangeLegend(mode),
       mode === 'select' && el('p.faint.center', { style: { marginTop: '.5rem' } },
-        `${selected.size} hands selected. Drag to select several at once.`),
+        t('session.handsSelected', { n: selected.size })),
     );
   };
 

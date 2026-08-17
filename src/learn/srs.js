@@ -14,6 +14,8 @@
  *     tells the truth about what has gone rusty.
  */
 
+import { t } from '../i18n/index.js';
+
 const DAY = 24 * 60 * 60 * 1000;
 
 /** A fresh record for a skill the learner has just met. */
@@ -100,20 +102,20 @@ export function dueSkills(records, now = Date.now()) {
 
 /** Where a skill sits, for display. */
 export function strengthLabel(value) {
-  if (value >= 0.8) return 'solid';
-  if (value >= 0.55) return 'good';
-  if (value >= 0.3) return 'shaky';
-  if (value > 0) return 'rusty';
-  return 'new';
+  if (value >= 0.8) return t('strength.solid');
+  if (value >= 0.55) return t('strength.good');
+  if (value >= 0.3) return t('strength.shaky');
+  if (value > 0) return t('strength.rusty');
+  return t('strength.new');
 }
 
 /** Human phrasing for when a skill comes back. */
 export function dueLabel(record, now = Date.now()) {
-  if (!record || !record.reps) return 'not started';
+  if (!record || !record.reps) return t('due.notStarted');
   const days = Math.round((record.due - now) / DAY);
-  if (days <= 0) return 'due now';
-  if (days === 1) return 'due tomorrow';
-  if (days < 7) return `due in ${days} days`;
-  if (days < 30) return `due in ${Math.round(days / 7)} weeks`;
-  return `due in ${Math.round(days / 30)} months`;
+  if (days <= 0) return t('due.now');
+  if (days === 1) return t('due.tomorrow');
+  if (days < 7) return t('due.days', { n: days });
+  if (days < 30) return t('due.weeks', { n: Math.round(days / 7) });
+  return t('due.months', { n: Math.round(days / 30) });
 }

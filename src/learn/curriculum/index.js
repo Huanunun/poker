@@ -13,6 +13,8 @@ import { LEVEL_5 } from './level5.js';
 import { LEVEL_6 } from './level6.js';
 import { GENERATORS } from '../exercises.js';
 import { SKILL_BY_ID } from '../skills.js';
+import { getLocale } from '../../i18n/index.js';
+import { LESSONS_ZH, LEVELS_ZH } from '../../i18n/lessons-zh.js';
 
 export const LEVELS = [LEVEL_1, LEVEL_2, LEVEL_3, LEVEL_4, LEVEL_5, LEVEL_6];
 
@@ -110,4 +112,52 @@ export function validateCurriculum() {
   }
 
   return problems;
+}
+
+/* ------------------------------------------------------------------ *
+ * Localisation
+ * ------------------------------------------------------------------ */
+
+/**
+ * A lesson in the active language.
+ *
+ * Falls back field by field rather than all-or-nothing, so a lesson with a
+ * translated title but untranslated concepts shows the Chinese title and the
+ * English body instead of reverting entirely to English.
+ */
+export function localiseLesson(lesson) {
+  const zh = LESSONS_ZH[lesson.id];
+  if (!zh || getLocale() !== 'zh') return lesson;
+
+  const levelZh = LEVELS_ZH[lesson.level];
+  return {
+    ...lesson,
+    title: zh.title ?? lesson.title,
+    unit: zh.unit ?? lesson.unit,
+    takeaway: zh.takeaway ?? lesson.takeaway,
+    levelName: levelZh?.name ?? lesson.levelName,
+    concepts: lesson.concepts.map((concept, i) => ({
+      ...concept,
+      title: zh.concepts?.[i]?.title ?? concept.title,
+      body: zh.concepts?.[i]?.body ?? concept.body,
+    })),
+  };
+}
+
+/** A level's display strings in the active language. */
+export function localiseLevel(level) {
+  const zh = LEVELS_ZH[level.level];
+  if (!zh || getLocale() !== 'zh') return level;
+  return {
+    ...level,
+    name: zh.name ?? level.name,
+    subtitle: zh.subtitle ?? level.subtitle,
+    promise: zh.promise ?? level.promise,
+  };
+}
+
+/** Share of lessons with Chinese content, reported honestly in the app. */
+export function lessonTranslationCoverage() {
+  const translated = LESSONS.filter((l) => LESSONS_ZH[l.id]).length;
+  return translated / LESSONS.length;
 }

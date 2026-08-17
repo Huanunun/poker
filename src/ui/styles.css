@@ -857,3 +857,22 @@ button:disabled { cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
+
+/* Language toggle in the header. Compact, because it sits beside the stats. */
+.lang-toggle {
+  padding: .3rem .55rem;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  border-radius: 999px;
+  min-width: 2.6rem;
+}
+
+/* Chinese needs a slightly taller line and a font stack that includes the
+   system CJK faces, or it renders in a fallback that looks broken. */
+:root[lang="zh"] body,
+body:lang(zh) {
+  font-family: var(--font), "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  line-height: 1.7;
+}

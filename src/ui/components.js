@@ -8,6 +8,7 @@
  */
 
 import { el, pctText } from './dom.js';
+import { t } from '../i18n/index.js';
 import { RANKS, SUITS, SUIT_SYMBOLS, cardToString, isRed, rankOf, suitOf } from '../engine/cards.js';
 import { GRID, comboCount } from '../engine/ranges.js';
 import { STRANDS } from '../learn/skills.js';
@@ -50,7 +51,7 @@ export function feltTable(scenario = {}) {
 
   if (scenario.position) {
     felt.append(el('div.felt-section',
-      el('div.felt-label', 'Your seat'),
+      el('div.felt-label', t('table.yourSeat')),
       el('div', { style: { fontWeight: '700', fontSize: '1.1rem' } }, scenario.position),
     ));
   }
@@ -64,14 +65,14 @@ export function feltTable(scenario = {}) {
 
   if (scenario.hole?.length) {
     felt.append(el('div.felt-section',
-      el('div.felt-label', 'Your hand'),
+      el('div.felt-label', t('table.yourHand')),
       cardRow(scenario.hole),
     ));
   }
 
   if (scenario.villainCards?.length && scenario.revealVillain) {
     felt.append(el('div.felt-section',
-      el('div.felt-label', 'Their hand (face up for this drill)'),
+      el('div.felt-label', t('table.theirHand')),
       cardRow(scenario.villainCards),
     ));
   }
@@ -86,9 +87,9 @@ export function feltTable(scenario = {}) {
   }
 
   const money = [];
-  if (scenario.pot !== undefined) money.push({ label: 'Pot', value: scenario.pot });
-  if (scenario.bet !== undefined) money.push({ label: 'They bet', value: scenario.bet });
-  if (scenario.stack !== undefined) money.push({ label: 'Stack behind', value: scenario.stack });
+  if (scenario.pot !== undefined) money.push({ label: t('table.pot'), value: scenario.pot });
+  if (scenario.bet !== undefined) money.push({ label: t('table.theyBet'), value: scenario.bet });
+  if (scenario.stack !== undefined) money.push({ label: t('table.stackBehind'), value: scenario.stack });
   if (money.length) {
     felt.append(el('div.felt-section.pot-display',
       money.map((m) => el('div.pot-item',
@@ -114,10 +115,9 @@ export function feltTable(scenario = {}) {
 }
 
 function boardLabel(count) {
-  if (count === 3) return 'Flop';
-  if (count === 4) return 'Flop and turn';
-  if (count === 5) return 'The board';
-  return 'Board';
+  if (count === 3) return t('table.flop');
+  if (count === 4) return t('table.flopTurn');
+  return t('table.board');
 }
 
 /* ------------------------------------------------------------------ *

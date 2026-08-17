@@ -861,6 +861,25 @@ button:disabled { cursor: not-allowed; }
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
 
+/* Language toggle in the header. Compact, because it sits beside the stats. */
+.lang-toggle {
+  padding: .3rem .55rem;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  border-radius: 999px;
+  min-width: 2.6rem;
+}
+
+/* Chinese needs a slightly taller line and a font stack that includes the
+   system CJK faces, or it renders in a fallback that looks broken. */
+:root[lang="zh"] body,
+body:lang(zh) {
+  font-family: var(--font), "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  line-height: 1.7;
+}
+
 </style>
 
 <div id="app" class="app">
@@ -989,6 +1008,144 @@ const __m_src_ui_dom_js = (() => {
   }
 
   return { el, clear, mount, richText, paragraphs, line, pctText, announce };
+})();
+
+/* src/i18n/index.js */
+const __m_src_i18n_index_js = (() => {
+
+  /**
+   * Bilingual support: English and Chinese, switchable at any time.
+   *
+   * Three rules shape this design.
+   *
+   * **Translation is data, not code.** Every translatable string has a key, and
+   * the languages are plain objects keyed the same way. Adding or fixing a
+   * translation never means touching application logic.
+   *
+   * **Missing translations fall back silently to English.** A partially
+   * translated app must stay completely usable — an untranslated sentence in
+   * English is fine, a blank space or a raw key is not. This matters because the
+   * content here is large and translating it is staged.
+   *
+   * **Poker terms keep their English alongside the Chinese.** A learner who only
+   * ever reads 底池赔率 cannot follow an English forum, a training video, or the
+   * table talk in a live game. So the Chinese renders terms as
+   * "底池赔率（pot odds）" the first time they matter. The goal is a player who can
+   * operate in both, not a translated bubble.
+   */
+
+  const LOCALES = {
+    en: { id: 'en', name: 'English', short: 'EN', native: 'English' },
+    zh: { id: 'zh', name: 'Chinese', short: '中文', native: '中文' },
+  };
+
+  const LOCALE_LIST = Object.values(LOCALES);
+  const DEFAULT_LOCALE = 'en';
+
+  let current = DEFAULT_LOCALE;
+  let tables = { en: {}, zh: {} };
+  const listeners = new Set();
+
+  /** Register the string tables. Called once at startup. */
+  function registerStrings(locale, table) {
+    tables[locale] = { ...(tables[locale] || {}), ...table };
+  }
+
+  function getLocale() {
+    return current;
+  }
+
+  function localeInfo(id = current) {
+    return LOCALES[id] || LOCALES[DEFAULT_LOCALE];
+  }
+
+  function setLocale(locale) {
+    if (!LOCALES[locale] || locale === current) return current;
+    current = locale;
+    for (const fn of listeners) fn(current);
+    return current;
+  }
+
+  /** Subscribe to locale changes. Returns an unsubscribe function. */
+  function onLocaleChange(fn) {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
+  }
+
+  /** The other language, for a two-way toggle. */
+  function otherLocale() {
+    return current === 'en' ? 'zh' : 'en';
+  }
+
+  /**
+   * Look up a string.
+   *
+   * @param {string} key
+   * @param {object} [vars] values for `{name}` placeholders
+   * @returns {string}
+   */
+  function t(key, vars) {
+    const raw = tables[current]?.[key] ?? tables[DEFAULT_LOCALE]?.[key];
+    if (raw === undefined) {
+      // A missing key in *both* languages is a bug, not a translation gap. Return
+      // the key so it is visible in the UI rather than rendering an empty space.
+      return key;
+    }
+    return vars ? interpolate(raw, vars) : raw;
+  }
+
+  /** Whether a key exists in the active locale specifically. */
+  function isTranslated(key) {
+    return tables[current]?.[key] !== undefined;
+  }
+
+  function interpolate(template, vars) {
+    return String(template).replace(/\{(\w+)\}/g, (match, name) => (
+      Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : match
+    ));
+  }
+
+  /**
+   * Pick the right variant of an object that carries both languages.
+   *
+   * Used for content authored as `{ en: ..., zh: ... }` — lesson bodies and the
+   * like — where a key-based table would be unwieldy.
+   */
+  function pick(bundle, fallback = '') {
+    if (bundle === null || bundle === undefined) return fallback;
+    if (typeof bundle === 'string') return bundle;
+    return bundle[current] ?? bundle[DEFAULT_LOCALE] ?? fallback;
+  }
+
+  /**
+   * How much of the interface is translated into a locale.
+   *
+   * Reported honestly in the app rather than hidden, because a learner who meets
+   * an English paragraph should know it is a gap being filled, not a failure.
+   */
+  function coverage(locale = current) {
+    const base = Object.keys(tables[DEFAULT_LOCALE] || {});
+    if (!base.length) return 1;
+    const target = tables[locale] || {};
+    const done = base.filter((k) => target[k] !== undefined).length;
+    return done / base.length;
+  }
+
+  /** Keys present in English but missing from a locale. Used by the tests. */
+  function missingKeys(locale) {
+    const base = Object.keys(tables[DEFAULT_LOCALE] || {});
+    const target = tables[locale] || {};
+    return base.filter((k) => target[k] === undefined);
+  }
+
+  /** Reset, for tests. */
+  function _reset() {
+    tables = { en: {}, zh: {} };
+    current = DEFAULT_LOCALE;
+    listeners.clear();
+  }
+
+  return { LOCALE_LIST, DEFAULT_LOCALE, registerStrings, getLocale, localeInfo, setLocale, onLocaleChange, otherLocale, t, isTranslated, interpolate, pick, coverage, missingKeys, _reset };
 })();
 
 /* src/engine/cards.js */
@@ -1899,6 +2056,7 @@ const __m_src_learn_skills_js = (() => {
 /* src/ui/components.js */
 const __m_src_ui_components_js = (() => {
   const { el, pctText } = __m_src_ui_dom_js;
+  const { t } = __m_src_i18n_index_js;
   const { RANKS, SUITS, SUIT_SYMBOLS, cardToString, isRed, rankOf, suitOf } = __m_src_engine_cards_js;
   const { GRID, comboCount } = __m_src_engine_ranges_js;
   const { STRANDS } = __m_src_learn_skills_js;
@@ -1910,6 +2068,7 @@ const __m_src_ui_components_js = (() => {
    * spends most of their attention decoding the board, so the board has to be
    * legible at a glance.
    */
+
 
 
 
@@ -1954,7 +2113,7 @@ const __m_src_ui_components_js = (() => {
 
     if (scenario.position) {
       felt.append(el('div.felt-section',
-        el('div.felt-label', 'Your seat'),
+        el('div.felt-label', t('table.yourSeat')),
         el('div', { style: { fontWeight: '700', fontSize: '1.1rem' } }, scenario.position),
       ));
     }
@@ -1968,14 +2127,14 @@ const __m_src_ui_components_js = (() => {
 
     if (scenario.hole?.length) {
       felt.append(el('div.felt-section',
-        el('div.felt-label', 'Your hand'),
+        el('div.felt-label', t('table.yourHand')),
         cardRow(scenario.hole),
       ));
     }
 
     if (scenario.villainCards?.length && scenario.revealVillain) {
       felt.append(el('div.felt-section',
-        el('div.felt-label', 'Their hand (face up for this drill)'),
+        el('div.felt-label', t('table.theirHand')),
         cardRow(scenario.villainCards),
       ));
     }
@@ -1990,9 +2149,9 @@ const __m_src_ui_components_js = (() => {
     }
 
     const money = [];
-    if (scenario.pot !== undefined) money.push({ label: 'Pot', value: scenario.pot });
-    if (scenario.bet !== undefined) money.push({ label: 'They bet', value: scenario.bet });
-    if (scenario.stack !== undefined) money.push({ label: 'Stack behind', value: scenario.stack });
+    if (scenario.pot !== undefined) money.push({ label: t('table.pot'), value: scenario.pot });
+    if (scenario.bet !== undefined) money.push({ label: t('table.theyBet'), value: scenario.bet });
+    if (scenario.stack !== undefined) money.push({ label: t('table.stackBehind'), value: scenario.stack });
     if (money.length) {
       felt.append(el('div.felt-section.pot-display',
         money.map((m) => el('div.pot-item',
@@ -2018,10 +2177,9 @@ const __m_src_ui_components_js = (() => {
   }
 
   function boardLabel(count) {
-    if (count === 3) return 'Flop';
-    if (count === 4) return 'Flop and turn';
-    if (count === 5) return 'The board';
-    return 'Board';
+    if (count === 3) return t('table.flop');
+    if (count === 4) return t('table.flopTurn');
+    return t('table.board');
   }
 
   /* ------------------------------------------------------------------ *
@@ -2155,6 +2313,406 @@ const __m_src_ui_components_js = (() => {
 
 
   return { playingCard, cardRow, feltTable, rangeGrid, rangeLegend, progressBar, statPill, tile, skillRow, emptyState, derivation, readout, pctText };
+})();
+
+/* src/i18n/ui.js */
+const __m_src_i18n_ui_js = (() => {
+
+  /**
+   * Interface strings, English and Chinese.
+   *
+   * Kept as one flat table per language so a missing key is obvious and a
+   * translator never has to read application code.
+   *
+   * On the Chinese: poker vocabulary keeps its English in brackets the first time
+   * it appears in a screen — 底池赔率（pot odds）. Every serious resource, every
+   * training video and most live tables use the English terms, so a learner who
+   * only knows the Chinese is stranded the moment they leave this app.
+   */
+
+  const UI_EN = {
+    /* Shell */
+    'app.name': "Hold'em Dojo",
+    'nav.today': 'Today',
+    'nav.path': 'Path',
+    'nav.progress': 'Progress',
+    'nav.sandbox': 'Sandbox',
+    'stat.streak': 'day streak',
+    'stat.xp': 'XP',
+    'stat.mastery': 'mastery',
+    'stat.accuracy': 'accuracy',
+    'stat.difficulty': 'difficulty',
+    'stat.daysActive': 'days active',
+    'stat.bestStreak': 'best streak',
+    'stat.questions': 'questions',
+
+    /* Difficulty tiers */
+    'difficulty.2': 'Building',
+    'difficulty.3': 'Standard',
+    'difficulty.4': 'Sharp',
+    'difficulty.5': 'Hard',
+
+    /* Today */
+    'today.day': 'Day {day} · {done} of {total} lessons',
+    'today.startFirst': 'Start your first lesson',
+    'today.startSession': "Start today's session",
+    'today.complete': 'The course is complete',
+    'today.completeBody': 'Keep going with daily practice — sessions carry on drawing from everything you have learned.',
+    'today.lessonMeta': '{level} · {unit} · about {minutes} minutes',
+    'today.needsWork': 'Needs work',
+    'today.needsWorkNote': 'These are pulled into your sessions automatically. You do not need to do anything about them.',
+    'today.dailyGoal': 'Daily goal',
+    'goal.light': 'Light',
+    'goal.lightDetail': '15 minutes — one idea a day',
+    'goal.steady': 'Steady',
+    'goal.steadyDetail': '30 minutes — the recommended pace',
+    'goal.serious': 'Serious',
+    'goal.seriousDetail': '45 minutes — fastest sensible progress',
+    'today.howItWorks': 'How this works',
+    'today.howItWorksBody':
+      'This course assumes you know the rules and cannot yet price a decision. So it starts at the maths — no hand rankings, no card notation — and every lesson works towards one of five questions: bet, check, call, raise, or fold, and how much.\n\n'
+      + 'Nothing is memorised. Those odds charts are impossible to hold in your head, and they should be: the goal here is to derive the number at the table in about five seconds, from counting. Shortcuts arrive only after you have worked them out the long way often enough that they feel obvious — and you learn where each one lies to you.\n\n'
+      + 'Cash games, six to ten players, 100 big blinds. No tournaments.\n\n'
+      + 'Skills you get wrong come back tomorrow; skills you get right come back in three days, then a week, then a month. If you find it too easy it gets harder on its own, and you never have to track any of this.',
+
+    /* Path */
+    'path.title': 'The path',
+    'path.summary': '{lessons} lessons across 6 levels, about {hours} hours of material, designed to be spread across a year at 15 to 45 minutes a day.',
+    'path.locked': 'Finish level {n} to unlock this.',
+    'path.checkpoint': 'checkpoint',
+    'path.yearAhead': 'The year ahead',
+    'path.yearAheadNote': 'Where a learner doing one session a day arrives, and when.',
+    'path.dayLabel': 'Day {day}',
+    'path.missNote': 'Miss a week and nothing is lost. Sessions resume from what you actually know, not from where the calendar says you should be.',
+
+    /* Session player */
+    'session.ideaOf': '{level} · {unit} · idea {n} of {total}',
+    'session.gotIt': 'Got it',
+    'session.takeaway': 'Take this away',
+    'session.finishLesson': 'Finish lesson',
+    'session.review': 'Review',
+    'session.practice': 'Practice',
+    'session.stepOf': 'Step {n} of {total}',
+    'session.check': 'Check',
+    'session.continue': 'Continue',
+    'session.showHint': 'Show a hint',
+    'session.hint': 'Hint',
+    'session.correct': 'Correct',
+    'session.closeButNot': 'Close, but not quite',
+    'session.notQuite': 'Not quite',
+    'session.chainComplete': 'Chain complete',
+    'session.stepsCorrect': '{n} of {total} steps correct',
+    'session.youSaid': 'You said {answer}.',
+    'session.answerIs': 'The answer is {answer}.',
+    'session.selectionShown': 'The correct selection is shown above.',
+    'session.gridFeedback': 'You missed {missing} hands and included {extra} that should not be there.',
+    'session.selectAll': 'Select all that apply, then check.',
+    'session.chooseN': 'Choose {n}.',
+    'session.cardsHighlighted': 'Highlighted cards are the five that play.',
+    'session.handsSelected': '{n} hands selected. Drag to select several at once.',
+    'session.nothing': 'nothing',
+    'session.leave': 'Leave session',
+
+    /* Summary */
+    'summary.sharp': 'Sharp session',
+    'summary.sharpNote': 'That accuracy means the ideas are landing. The spacing algorithm will push these skills further out and bring you something harder.',
+    'summary.solid': 'Solid work',
+    'summary.solidNote': 'A few misses is exactly right. If everything were easy you would not be learning anything.',
+    'summary.done': 'Session done',
+    'summary.doneNote': 'A tough one. The skills you missed are already scheduled to come back tomorrow, which is precisely how this is meant to work.',
+    'summary.correctLabel': 'correct',
+    'summary.accuracyLabel': 'accuracy',
+    'summary.streakLabel': 'day streak',
+    'summary.time': 'About {minutes} minutes. Total XP {xp}.',
+    'summary.doneForToday': 'Done for today',
+
+    /* Progress */
+    'progress.title': 'Progress',
+    'progress.byArea': 'Mastery by area',
+    'progress.allSkills': 'Every skill ({started} of {total} started)',
+    'progress.nothingYet': 'Nothing tracked yet',
+    'progress.nothingYetBody': 'Finish a session and your skill strengths appear here.',
+    'progress.lessonsCompleted': 'Lessons completed',
+    'progress.save': 'Save your progress',
+    'progress.saveBody': 'Everything is stored in this browser and never sent anywhere. Save a backup file to move your progress to another browser or machine, or to keep it safe.',
+    'progress.download': 'Download backup file',
+    'progress.showText': 'Show backup text',
+    'progress.restoreFile': 'Restore from file',
+    'progress.pasteText': 'Paste backup text',
+    'progress.restoreThis': 'Restore this',
+    'progress.copyNote': 'Select all of this and copy it somewhere safe.',
+    'progress.pastePlaceholder': 'Paste your backup text here…',
+    'progress.saved': 'Saved as {name}. Keep it somewhere you will find it again.',
+    'progress.downloadBlocked': 'This browser blocked the download. Use "Show backup text" below and copy it instead.',
+    'progress.replaceConfirm': '{summary}\n\nThis replaces your current progress. Continue?',
+    'progress.startOver': 'Start over',
+    'progress.startOverBody': 'Erasing is permanent. Save a backup first if there is any chance you want this back.',
+    'progress.reset': 'Reset all progress',
+    'progress.resetConfirm': 'Erase all progress and start over? This cannot be undone.',
+
+    /* Strength labels */
+    'strength.solid': 'solid',
+    'strength.good': 'good',
+    'strength.shaky': 'shaky',
+    'strength.rusty': 'rusty',
+    'strength.new': 'new',
+    'due.notStarted': 'not started',
+    'due.now': 'due now',
+    'due.tomorrow': 'due tomorrow',
+    'due.days': 'due in {n} days',
+    'due.weeks': 'due in {n} weeks',
+    'due.months': 'due in {n} months',
+
+    /* Strands */
+    'strand.decisions': 'The five decisions',
+    'strand.maths': 'The maths behind them',
+    'strand.reading': 'Reading the board',
+    'strand.table': 'Position and the table',
+    'strand.opponent': 'Reading opponents',
+    'strand.self': 'Playing yourself',
+
+    /* Sandbox */
+    'sandbox.title': 'Sandbox',
+    'sandbox.intro': 'Bring a hand that puzzled you. Change one thing at a time and watch what happens to the numbers.',
+    'sandbox.equity': 'Equity calculator',
+    'sandbox.yourHand': 'Your hand',
+    'sandbox.theirHand': 'Their hand or range',
+    'sandbox.board': 'Board (leave blank for preflop)',
+    'sandbox.yourEquity': 'your equity',
+    'sandbox.youWin': 'you win',
+    'sandbox.youChop': 'you chop',
+    'sandbox.exactNote': 'Exact, from all {trials} runouts.',
+    'sandbox.estimateNote': 'Estimated from {trials} simulations.',
+    'sandbox.potOdds': 'Pot odds and price',
+    'sandbox.potBefore': 'Pot before their bet',
+    'sandbox.theirBet': 'Their bet',
+    'sandbox.yourOuts': 'Your outs (optional)',
+    'sandbox.equityNeeded': 'equity needed',
+    'sandbox.ofPot': 'of pot',
+    'sandbox.mustDefend': 'you must defend',
+    'sandbox.oneCard': 'one card',
+    'sandbox.twoCards': 'two cards',
+    'sandbox.enterPotAndBet': 'Enter a pot and a bet.',
+    'sandbox.rangeExplorer': 'Range explorer',
+    'sandbox.hands': 'hands',
+    'sandbox.combos': 'combos',
+    'sandbox.ofAllHands': 'of all hands',
+    'sandbox.nothingSelected': 'Nothing selected.',
+    'sandbox.clear': 'Clear',
+
+    /* Table labels */
+    'table.flop': 'Flop',
+    'table.flopTurn': 'Flop and turn',
+    'table.board': 'The board',
+    'table.yourHand': 'Your hand',
+    'table.theirHand': 'Their hand (face up for this drill)',
+    'table.pot': 'Pot',
+    'table.theyBet': 'They bet',
+    'table.stackBehind': 'Stack behind',
+    'table.yourSeat': 'Your seat',
+
+    /* Language */
+    'lang.switch': 'Language',
+    'lang.coverage': 'Chinese translation is {percent} complete. Anything not yet translated appears in English.',
+
+    /* Errors */
+    'error.title': 'Something broke',
+    'error.body': 'Your progress is saved. Reloading usually fixes it.',
+    'error.reload': 'Reload',
+  };
+
+  const UI_ZH = {
+    /* Shell */
+    'app.name': '德州扑克道场',
+    'nav.today': '今天',
+    'nav.path': '课程',
+    'nav.progress': '进度',
+    'nav.sandbox': '计算器',
+    'stat.streak': '天连续',
+    'stat.xp': '经验值',
+    'stat.mastery': '掌握度',
+    'stat.accuracy': '正确率',
+    'stat.difficulty': '难度',
+    'stat.daysActive': '学习天数',
+    'stat.bestStreak': '最长连续',
+    'stat.questions': '题目数',
+
+    /* Difficulty tiers */
+    'difficulty.2': '打基础',
+    'difficulty.3': '标准',
+    'difficulty.4': '进阶',
+    'difficulty.5': '高难',
+
+    /* Today */
+    'today.day': '第 {day} 天 · 已完成 {done} / {total} 课',
+    'today.startFirst': '开始第一课',
+    'today.startSession': '开始今天的练习',
+    'today.complete': '课程已全部完成',
+    'today.completeBody': '继续每天练习——系统会从你学过的全部内容里出题。',
+    'today.lessonMeta': '{level} · {unit} · 约 {minutes} 分钟',
+    'today.needsWork': '需要加强',
+    'today.needsWorkNote': '这些会自动出现在你的练习里，你不需要特意去管。',
+    'today.dailyGoal': '每日目标',
+    'goal.light': '轻松',
+    'goal.lightDetail': '15 分钟——每天一个概念',
+    'goal.steady': '稳定',
+    'goal.steadyDetail': '30 分钟——推荐节奏',
+    'goal.serious': '认真',
+    'goal.seriousDetail': '45 分钟——最快的合理进度',
+    'today.howItWorks': '这套系统怎么用',
+    'today.howItWorksBody':
+      '这门课假设你已经懂规则，但还不会给一个决策"算价钱"。所以它直接从数学开始——没有牌型大小、没有牌面记号——每一课都指向五个问题之一：下注、过牌、跟注、加注、还是弃牌，以及下多少。\n\n'
+      + '这里不需要背任何东西。那些赔率表本来就记不住，也不该去记：目标是让你在牌桌上用五秒钟、靠数数把答案算出来。速算技巧只会在你用笨办法算过很多遍之后才出现——而且会告诉你它在什么情况下会算错。\n\n'
+      + '只讲现金局（cash game），6 到 10 人桌，100 个大盲筹码。不涉及锦标赛。\n\n'
+      + '做错的内容明天会再出现；做对的三天后再出现，然后一周、一个月。如果你觉得太简单，难度会自动往上调，这些你都不用操心。',
+
+    /* Path */
+    'path.title': '课程路径',
+    'path.summary': '6 个等级共 {lessons} 课，约 {hours} 小时内容，设计成一年内每天 15 到 45 分钟学完。',
+    'path.locked': '完成第 {n} 级后解锁。',
+    'path.checkpoint': '阶段测验',
+    'path.yearAhead': '这一年的路线',
+    'path.yearAheadNote': '每天练一次的话，什么时候会到哪里。',
+    'path.dayLabel': '第 {day} 天',
+    'path.missNote': '中断一周也不会丢失任何东西。练习会从你真正掌握的地方接着来，而不是从日历该在的地方。',
+
+    /* Session player */
+    'session.ideaOf': '{level} · {unit} · 第 {n} / {total} 个概念',
+    'session.gotIt': '明白了',
+    'session.takeaway': '这一课的重点',
+    'session.finishLesson': '完成本课',
+    'session.review': '复习',
+    'session.practice': '练习',
+    'session.stepOf': '第 {n} 步，共 {total} 步',
+    'session.check': '确认',
+    'session.continue': '继续',
+    'session.showHint': '看提示',
+    'session.hint': '提示',
+    'session.correct': '正确',
+    'session.closeButNot': '很接近，但还不对',
+    'session.notQuite': '不对',
+    'session.chainComplete': '整条思路走完了',
+    'session.stepsCorrect': '{total} 步里答对了 {n} 步',
+    'session.youSaid': '你的答案是 {answer}。',
+    'session.answerIs': '正确答案是 {answer}。',
+    'session.selectionShown': '正确的选择已在上方标出。',
+    'session.gridFeedback': '你漏掉了 {missing} 手牌，多选了 {extra} 手不该选的。',
+    'session.selectAll': '选出所有符合的，然后点确认。',
+    'session.chooseN': '选 {n} 张。',
+    'session.cardsHighlighted': '高亮的五张就是真正成手的牌。',
+    'session.handsSelected': '已选 {n} 手牌。可以按住拖动一次选多个。',
+    'session.nothing': '没有选择',
+    'session.leave': '退出练习',
+
+    /* Summary */
+    'summary.sharp': '状态很好',
+    'summary.sharpNote': '这个正确率说明概念真的吃透了。系统会把这些技能的复习间隔拉长，然后给你更难的。',
+    'summary.solid': '完成得不错',
+    'summary.solidNote': '错几道正好。如果全对，说明你没在学新东西。',
+    'summary.done': '本次练习结束',
+    'summary.doneNote': '这次不容易。做错的技能已经安排在明天再出现——这套系统本来就该这样运作。',
+    'summary.correctLabel': '答对',
+    'summary.accuracyLabel': '正确率',
+    'summary.streakLabel': '天连续',
+    'summary.time': '约 {minutes} 分钟。累计经验值 {xp}。',
+    'summary.doneForToday': '今天就到这里',
+
+    /* Progress */
+    'progress.title': '进度',
+    'progress.byArea': '各领域掌握度',
+    'progress.allSkills': '全部技能（已开始 {started} / {total}）',
+    'progress.nothingYet': '还没有记录',
+    'progress.nothingYetBody': '完成一次练习后，这里会显示你各项技能的强度。',
+    'progress.lessonsCompleted': '已完成的课程',
+    'progress.save': '保存你的进度',
+    'progress.saveBody': '所有数据都存在这个浏览器里，不会发送到任何地方。导出一个备份文件，就可以换浏览器、换电脑继续，或者单纯保存起来。',
+    'progress.download': '下载备份文件',
+    'progress.showText': '显示备份文本',
+    'progress.restoreFile': '从文件恢复',
+    'progress.pasteText': '粘贴备份文本',
+    'progress.restoreThis': '恢复这份数据',
+    'progress.copyNote': '全选下面的内容，复制到安全的地方。',
+    'progress.pastePlaceholder': '把备份文本粘贴到这里…',
+    'progress.saved': '已保存为 {name}。放在你之后找得到的地方。',
+    'progress.downloadBlocked': '这个浏览器阻止了下载。请用下面的"显示备份文本"复制内容。',
+    'progress.replaceConfirm': '{summary}\n\n这会覆盖你当前的进度。确定继续吗？',
+    'progress.startOver': '重新开始',
+    'progress.startOverBody': '清空是不可恢复的。如果还有一点可能想要回来，先导出备份。',
+    'progress.reset': '清空全部进度',
+    'progress.resetConfirm': '清空全部进度并重新开始？此操作无法撤销。',
+
+    /* Strength labels */
+    'strength.solid': '扎实',
+    'strength.good': '良好',
+    'strength.shaky': '不稳',
+    'strength.rusty': '生疏',
+    'strength.new': '未开始',
+    'due.notStarted': '尚未开始',
+    'due.now': '现在该复习',
+    'due.tomorrow': '明天复习',
+    'due.days': '{n} 天后复习',
+    'due.weeks': '{n} 周后复习',
+    'due.months': '{n} 个月后复习',
+
+    /* Strands */
+    'strand.decisions': '五个决策',
+    'strand.maths': '背后的数学',
+    'strand.reading': '读牌面',
+    'strand.table': '位置与牌桌',
+    'strand.opponent': '读对手',
+    'strand.self': '管好自己',
+
+    /* Sandbox */
+    'sandbox.title': '计算器',
+    'sandbox.intro': '把让你困惑的那手牌放进来。每次只改一个条件，看数字怎么变。',
+    'sandbox.equity': '胜率（equity）计算器',
+    'sandbox.yourHand': '你的手牌',
+    'sandbox.theirHand': '对手的手牌或范围',
+    'sandbox.board': '公共牌（翻牌前留空）',
+    'sandbox.yourEquity': '你的胜率',
+    'sandbox.youWin': '你赢',
+    'sandbox.youChop': '平分',
+    'sandbox.exactNote': '精确值，穷举了全部 {trials} 种发牌。',
+    'sandbox.estimateNote': '基于 {trials} 次模拟的估算。',
+    'sandbox.potOdds': '底池赔率与价格',
+    'sandbox.potBefore': '他下注前的底池',
+    'sandbox.theirBet': '他的下注额',
+    'sandbox.yourOuts': '你的补牌数（选填）',
+    'sandbox.equityNeeded': '所需胜率',
+    'sandbox.ofPot': '占底池',
+    'sandbox.mustDefend': '你至少要跟注',
+    'sandbox.oneCard': '还剩一张牌',
+    'sandbox.twoCards': '还剩两张牌',
+    'sandbox.enterPotAndBet': '请输入底池和下注额。',
+    'sandbox.rangeExplorer': '范围（range）工具',
+    'sandbox.hands': '手牌种类',
+    'sandbox.combos': '组合数',
+    'sandbox.ofAllHands': '占所有起手牌',
+    'sandbox.nothingSelected': '还没有选择。',
+    'sandbox.clear': '清空',
+
+    /* Table labels */
+    'table.flop': '翻牌（flop）',
+    'table.flopTurn': '翻牌与转牌',
+    'table.board': '公共牌',
+    'table.yourHand': '你的手牌',
+    'table.theirHand': '对手手牌（本题为你亮出）',
+    'table.pot': '底池',
+    'table.theyBet': '他下注',
+    'table.stackBehind': '身后筹码',
+    'table.yourSeat': '你的位置',
+
+    /* Language */
+    'lang.switch': '语言',
+    'lang.coverage': '中文翻译已完成 {percent}。尚未翻译的部分会显示英文。',
+
+    /* Errors */
+    'error.title': '出错了',
+    'error.body': '你的进度已经保存。刷新一下通常就能解决。',
+    'error.reload': '刷新',
+  };
+
+  return { UI_EN, UI_ZH };
 })();
 
 /* src/learn/curriculum/level1.js */
@@ -6899,6 +7457,258 @@ const __m_src_learn_exercises_js = (() => {
   return { DIFFICULTY, GENERATORS, difficultyOf, generatorsUpTo, generate, generatorsForSkill, grade, questionCount };
 })();
 
+/* src/i18n/lessons-zh.js */
+const __m_src_i18n_lessons_zh_js = (() => {
+
+  /**
+   * Chinese lesson content.
+   *
+   * Keyed by lesson id, mirroring the shape of the English lesson objects.
+   * Anything absent falls back to English, so this file can be filled in over
+   * time without the app ever showing a gap.
+   *
+   * Translation policy: poker terms carry their English in brackets on first use
+   * within a lesson — 底池赔率（pot odds）, 补牌（outs）, 胜率（equity）. A learner
+   * who only knows the Chinese cannot read a strategy forum, follow a training
+   * video, or talk to anyone at a live table, so the English is part of the
+   * lesson rather than clutter.
+   */
+
+  const LESSONS_ZH = {
+    'l1-01': {
+      unit: '那个"零"',
+      title: '每一个动作都值一个数字',
+      concepts: [
+        {
+          title: '期望值是平均值，不是预测',
+          body: '你能做的每一个动作——弃牌、跟注、加注——平均下来都值某个数量的大盲（bb）。不是说这一手牌，而是说你每次遇到这个局面时的平均结果。\n\n正确的打法就是那个值最多的动作。整个游戏就是这样。这门课后面所有内容，都只是在帮你把这些数字算得更快、更准。',
+        },
+        {
+          title: '为什么该关心平均值',
+          body: '这个局面你会遇到几百次。单独一次的结果是噪音，平均下来的结果才是你的收入。\n\n所以"这个跟注对吗？"从来不是问"赢了没有"，而是问"在我做决定的那一刻，这个动作是不是比其他选择更值钱"。',
+        },
+      ],
+      takeaway: '每个动作都值一个数字，选最大的那个。结果不会改变哪个数字更大。',
+    },
+
+    'l1-02': {
+      unit: '那个"零"',
+      title: '弃牌的价值正好是零',
+      concepts: [
+        {
+          title: '基准线',
+          body: '弃牌值零。不是负数——是零。你不再投入筹码，也不赢筹码。\n\n所以它是其他所有动作必须超过的那条线。跟注正确，是因为跟注值得比零多。加注正确，是因为它比两者都多。永远没有别的东西要判断。',
+        },
+        {
+          title: '已经在底池里的钱不是你的了',
+          body: '你之前投进去的筹码已经没了。它们属于底池，会归赢的那个人。弃牌并不会"损失"它们，因为它们在投进去的那一刻就已经不是你的了。\n\n"我已经投了这么多，不能现在弃"——这是扑克里最昂贵的一句话。底池里的钱会改变你被开出的**价格**，这一点极其重要；但它永远不构成继续下去的义务。',
+        },
+      ],
+      takeaway: '弃牌 = 0。这是其他一切要超过的数字。已经投进去的钱不是你的。',
+    },
+
+    'l1-03': {
+      unit: '数你的份额',
+      title: '你没看到的牌',
+      concepts: [
+        {
+          title: '每个概率下面的那个数字',
+          body: '52 张牌。你看得到自己两张，加上台面上的公共牌。翻牌圈还剩 47 张没看到，转牌圈剩 46 张。\n\n扑克里每一个概率，分母都是这个数字。没有别的数学了——整门学问就是数出对你有用的牌，然后做一次除法。',
+        },
+        {
+          title: '对手的牌也算"没看到"',
+          body: '如果五个对手手里有十张牌，从你的角度看它们仍然算"没看到"，你就当它们还在牌堆里。\n\n这不是简化，这是正确的算法。概率描述的是**你掌握的信息**。你对他们拿什么一无所知，所以那些牌出现在任何地方的可能性完全一样。',
+        },
+      ],
+      takeaway: '翻牌圈 47 张未见，转牌圈 46 张。对手的牌也算未见。',
+    },
+
+    'l1-04': {
+      unit: '数你的份额',
+      title: '数出能救你的牌',
+      concepts: [
+        {
+          title: '补牌是一张具体的牌',
+          body: '补牌（out）是指那些能把你的败牌变成胜牌的牌。不是"一张红桃"——是那些具体的红桃，每一张都是牌堆里实实在在的一张。\n\n你手上和台面上一共四张红桃，说明还剩九张。九张补牌。你没有用任何公式，你只是数了一下。',
+        },
+        {
+          title: '几个一眼就该知道的数',
+          body: '同花听牌（flush draw）：9 张。两头顺（open-ended）：8 张。卡顺（gutshot）：4 张。两张超对张（overcards）：6 张。\n\n不要去背。每种自己数一遍，之后就自然记住了——因为数一遍只要两秒，而且当局面和这份清单略有出入时，数数依然管用。',
+        },
+      ],
+      takeaway: '补牌是具体的牌。要数，不要估。',
+    },
+
+    'l1-05': {
+      unit: '数你的份额',
+      title: '那些已经输了的"补牌"',
+      concepts: [
+        {
+          title: '有些牌来了你还是输',
+          body: '你手里两张红桃，台面两张红桃——九张补牌，看上去很清楚。但如果对手是三条（set），其中两张红桃会让台面成对，给他葫芦。你做成了同花，却输掉了整个筹码。\n\n这就是"脏补牌"。牌来了，你高兴了，然后发现自己还是落后。',
+        },
+        {
+          title: '要对着他的牌数，不要凭空数',
+          body: '真正的问题从来不是"有多少张牌能让我变强"，而是"有多少张牌能让我**比他强**"。这是两个不同的数字，中间的差额就是钱流走的地方。\n\n本课的练习会把对手的牌翻开给你看，让你直接看到差别。真实牌桌上你要靠估，但至少你估的是对的东西。',
+        },
+      ],
+      takeaway: '数能赢过他的补牌，而不是数能让你变强的牌。',
+    },
+
+    'l1-06': {
+      unit: '数你的份额',
+      title: '把补牌变成百分比',
+      concepts: [
+        {
+          title: '一次除法就完事了',
+          body: '九张补牌，47 张未见的牌。9 除以 47 略小于五分之一，大约 19%。\n\n算下一张牌的概率，全部就是这一步。数出好牌，除以未见的牌。这个方法对任何补牌数、任何轮次都适用，而且你永远不需要查表。',
+        },
+      ],
+      takeaway: '补牌数 ÷ 未见牌数 = 下一张牌击中的概率。',
+    },
+
+    'l1-07': {
+      unit: '数你的份额',
+      title: '还有两张牌要发',
+      concepts: [
+        {
+          title: '两次机会，但不到两倍',
+          body: '在翻牌圈你还会看到两张牌，也就是有两次机会。粗略地说这会翻倍：九张补牌，一张牌约 19%，两张牌合起来约 35%。\n\n但不是正好两倍，因为有时候两张牌都是补牌，而你只需要一张。这个重叠就是为什么直接翻倍会略微高估，补牌越多，偏差越大。',
+        },
+      ],
+      takeaway: '还剩两张牌 ≈ 一张牌的两倍，略少一点，因为有重叠。',
+    },
+
+    'l1-08': {
+      unit: '数你的份额',
+      title: '你刚刚自己推出来的速算法',
+      concepts: [
+        {
+          title: '乘 2，或者乘 4',
+          body: '算了这么多遍，规律应该已经出来了。还剩一张牌：补牌 × 2。还剩两张牌：补牌 × 4。\n\n九张补牌在转牌圈是 18%，真实值 19.6%。九张补牌在翻牌圈是 36%，真实值 35%。每次都足够准，而且只要一秒钟。',
+        },
+        {
+          title: '以及它在哪里会骗你',
+          body: '补牌很多的时候，"乘 4"会算高。十五张补牌它给你 60%，真实值接近 54%。超过大约八张补牌，就往下调几个点。\n\n这就是"自己推出来的速算法"和"背下来的表"的区别。你知道它什么时候不准，所以你可以放心地快速使用它。',
+        },
+      ],
+      takeaway: '一张牌 ×2，两张牌 ×4。超过 8 张补牌要往下调。',
+    },
+
+    'l1-09': {
+      unit: '价格',
+      title: '底池给你开的价',
+      concepts: [
+        {
+          title: '你的钱占底池的比例',
+          body: '底池 10bb，他下注 5bb。如果你跟，底池变成 20bb，其中 5bb 是你的。你的钱占了你要争的这个池子的四分之一。\n\n所以你至少要有四分之一的机会赢。这就是底池赔率（pot odds）：你的跟注额，除以最终的底池。',
+        },
+        {
+          title: '分母要把你自己的跟注算进去',
+          body: '常见的错误是除以**你跟注之前**的底池。你赢的那个池子包含你即将投进去的筹码，所以它们必须算在分母里。\n\n把这一个细节弄对，底池赔率从此就简单了。',
+        },
+      ],
+      takeaway: '跟注额 ÷ 最终底池（含你的跟注）= 你需要的胜率。',
+    },
+
+    'l1-10': {
+      unit: '价格',
+      title: '每种下注尺度都有固定的价格',
+      concepts: [
+        {
+          title: '筹码大小完全不影响',
+          body: '半池下注永远需要 25%。永远——2bb 也好，2000bb 也好。满池下注永远需要 33%。这是**比例**的性质，跟金额无关。\n\n看懂这一点之后，牌桌上大部分算术就消失了。你不再计算，而是直接认出来。',
+        },
+        {
+          title: '你会遇到的那五个数',
+          body: '三分之一池需要 20%。半池 25%。三分之二池 29%。四分之三池 30%。满池 33%。\n\n这些你上一课全都自己推过。它们现在是你的了——而且注意它们挨得多近：任何常规下注需要的胜率都在 20% 到 33% 之间。光是这一点，牌桌上就够用。',
+        },
+      ],
+      takeaway: '1/3 池：20%。半池：25%。2/3 池：29%。3/4 池：30%。满池：33%。',
+    },
+
+    'l1-11': {
+      unit: '价格',
+      title: '胜率对比价格：整个决策就这一步',
+      concepts: [
+        {
+          title: '两个数字，一次比较',
+          body: '你有一个胜率——你多久赢一次。你有一个价格——你需要多久赢一次。前者大，跟注；后者大，弃牌。\n\n就这样。你这辈子面对的每一个跟注决策都是这个。在真实牌桌上变难的永远是估这两个数字，而不是比较它们。',
+        },
+      ],
+      takeaway: '胜率对比价格。大就跟，小就弃。',
+    },
+
+    'l1-12': {
+      unit: '价格',
+      title: '面对翻牌圈下注：只算一张牌',
+      concepts: [
+        {
+          title: '通常没人打算免费给你看两张',
+          body: '翻牌圈面对下注时要小心：你付这笔钱是为了看转牌，而他很可能在转牌还会再下一次。所以这个价格买到的是一张牌，不是两张。\n\n面对翻牌圈下注却用"乘 4"的数字，是很多人把自己说服进付不起的跟注的原因。只有在筹码马上要全下时才用乘 4。',
+        },
+      ],
+      takeaway: '面对翻牌圈下注只算一张牌，除非马上要全下。',
+    },
+
+    'l1-13': {
+      unit: '用筹码衡量',
+      title: '一个跟注到底值多少',
+      concepts: [
+        {
+          title: '赢的钱 × 赢的概率，减去输的钱 × 输的概率',
+          body: '底池赔率告诉你这个跟注对不对，期望值（EV）告诉你**对多少**，用筹码计。\n\n你有时赢下底池，其余时候输掉跟注额。EV =（赢的概率 × 赢的金额）−（输的概率 × 付出的金额）。两次乘法，一次减法。',
+        },
+        {
+          title: '为什么大小也重要，不只是正负',
+          body: '两个跟注可能都正确，其中一个却值十倍。知道哪些局面装着最多的钱，就知道该把注意力放在哪里——牌桌上如此，学习时也如此。',
+        },
+      ],
+      takeaway: 'EV 给决策一个数字。正数就比弃牌好，不管这手牌结果如何。',
+    },
+
+    'l1-14': {
+      unit: '用筹码衡量',
+      title: '正确的决定也会输',
+      concepts: [
+        {
+          title: '你该赢的池子，大部分时候会输掉',
+          body: '80% 的胜率意味着每五次输一次。一个晚上下来会发生好几回，感觉像被人骗了。\n\n并没有。那只是那 20% 在做 20% 该做的事。一个决定的好坏在发牌之前就定下了，之后发生什么都不会改变它。',
+        },
+        {
+          title: '结果会教你错误的东西',
+          body: '这才是真正危险的地方。如果你用结果评判打法，你会学会躲开那些"碰巧输了"的正确跟注，同时重复那些"碰巧赢了"的糟糕决定。\n\n用你当时掌握的信息去评判决定本身。这是唯一能让你进步的标准。',
+        },
+      ],
+      takeaway: '评判决定，不是评判结果。结果的噪音太大，学不到东西。',
+    },
+
+    'l1-15': {
+      unit: '用筹码衡量',
+      title: '第一级 · 阶段测验',
+      concepts: [
+        {
+          title: '你现在能给一个跟注定价了',
+          body: '你能对着真实的对手牌数补牌，用两种方法把它变成百分比，瞬间读出任何下注尺度的价格，算出一个跟注值多少筹码，并且解释为什么一个输掉的跟注仍然可以是正确的。\n\n这是地基。从这里开始，每一级都是建立在这些同样的零件上的一个不同决策。',
+        },
+      ],
+      takeaway: '你能给跟注定价了。接下来：所有"价格不等于全部真相"的局面。',
+    },
+  };
+
+  /** Level names and subtitles, shown on the path and in session headers. */
+  const LEVELS_ZH = {
+    1: { name: '一个决策值多少', subtitle: '用筹码算出来的期望值', promise: '能给任何跟注算出一个数字，并判断它是否比弃牌更好。' },
+    2: { name: '跟注还是弃牌', subtitle: '价格什么时候可信，什么时候骗你', promise: '不再因为底池大而跟注，也不再因为牌看着弱而弃牌。' },
+    3: { name: '下注还是过牌', subtitle: '两种赢法对比一种', promise: '出手之前就知道下注是否优于过牌，以及优多少。' },
+    4: { name: '下多少', subtitle: '用期望值决定尺度，而不是靠惯例', promise: '牌桌上每一个下注尺度，你都能用一个数字说明理由。' },
+    5: { name: '加注还是跟注', subtitle: '同样两张牌，两条不同的路', promise: '知道跟注和加注哪个更值钱，以及该加到多少。' },
+    6: { name: '真实的牌桌', subtitle: '6 到 10 人，五秒之内', promise: '在真实牌桌上五秒内做完这些判断，并且能脱离这个软件继续进步。' },
+  };
+
+  return { LESSONS_ZH, LEVELS_ZH };
+})();
+
 /* src/learn/curriculum/index.js */
 const __m_src_learn_curriculum_index_js = (() => {
   const { LEVEL_1 } = __m_src_learn_curriculum_level1_js;
@@ -6909,12 +7719,16 @@ const __m_src_learn_curriculum_index_js = (() => {
   const { LEVEL_6 } = __m_src_learn_curriculum_level6_js;
   const { GENERATORS } = __m_src_learn_exercises_js;
   const { SKILL_BY_ID } = __m_src_learn_skills_js;
+  const { getLocale } = __m_src_i18n_index_js;
+  const { LESSONS_ZH, LEVELS_ZH } = __m_src_i18n_lessons_zh_js;
   /**
    * The assembled curriculum.
    *
    * Levels are authored separately and joined here so that adding content never
    * means touching the scheduling code.
    */
+
+
 
 
 
@@ -7023,12 +7837,60 @@ const __m_src_learn_curriculum_index_js = (() => {
     return problems;
   }
 
-  return { LEVELS, LESSONS, LESSON_BY_ID, unitsOf, totalMinutes, skillsInLesson, validateCurriculum };
+  /* ------------------------------------------------------------------ *
+   * Localisation
+   * ------------------------------------------------------------------ */
+
+  /**
+   * A lesson in the active language.
+   *
+   * Falls back field by field rather than all-or-nothing, so a lesson with a
+   * translated title but untranslated concepts shows the Chinese title and the
+   * English body instead of reverting entirely to English.
+   */
+  function localiseLesson(lesson) {
+    const zh = LESSONS_ZH[lesson.id];
+    if (!zh || getLocale() !== 'zh') return lesson;
+
+    const levelZh = LEVELS_ZH[lesson.level];
+    return {
+      ...lesson,
+      title: zh.title ?? lesson.title,
+      unit: zh.unit ?? lesson.unit,
+      takeaway: zh.takeaway ?? lesson.takeaway,
+      levelName: levelZh?.name ?? lesson.levelName,
+      concepts: lesson.concepts.map((concept, i) => ({
+        ...concept,
+        title: zh.concepts?.[i]?.title ?? concept.title,
+        body: zh.concepts?.[i]?.body ?? concept.body,
+      })),
+    };
+  }
+
+  /** A level's display strings in the active language. */
+  function localiseLevel(level) {
+    const zh = LEVELS_ZH[level.level];
+    if (!zh || getLocale() !== 'zh') return level;
+    return {
+      ...level,
+      name: zh.name ?? level.name,
+      subtitle: zh.subtitle ?? level.subtitle,
+      promise: zh.promise ?? level.promise,
+    };
+  }
+
+  /** Share of lessons with Chinese content, reported honestly in the app. */
+  function lessonTranslationCoverage() {
+    const translated = LESSONS.filter((l) => LESSONS_ZH[l.id]).length;
+    return translated / LESSONS.length;
+  }
+
+  return { LEVELS, LESSONS, LESSON_BY_ID, unitsOf, totalMinutes, skillsInLesson, validateCurriculum, localiseLesson, localiseLevel, lessonTranslationCoverage };
 })();
 
 /* src/learn/srs.js */
 const __m_src_learn_srs_js = (() => {
-
+  const { t } = __m_src_i18n_index_js;
   /**
    * Spaced repetition, adapted for skills rather than flashcards.
    *
@@ -7044,6 +7906,8 @@ const __m_src_learn_srs_js = (() => {
    *   - Strength decays with time even without failures, so the progress display
    *     tells the truth about what has gone rusty.
    */
+
+
 
   const DAY = 24 * 60 * 60 * 1000;
 
@@ -7131,22 +7995,22 @@ const __m_src_learn_srs_js = (() => {
 
   /** Where a skill sits, for display. */
   function strengthLabel(value) {
-    if (value >= 0.8) return 'solid';
-    if (value >= 0.55) return 'good';
-    if (value >= 0.3) return 'shaky';
-    if (value > 0) return 'rusty';
-    return 'new';
+    if (value >= 0.8) return t('strength.solid');
+    if (value >= 0.55) return t('strength.good');
+    if (value >= 0.3) return t('strength.shaky');
+    if (value > 0) return t('strength.rusty');
+    return t('strength.new');
   }
 
   /** Human phrasing for when a skill comes back. */
   function dueLabel(record, now = Date.now()) {
-    if (!record || !record.reps) return 'not started';
+    if (!record || !record.reps) return t('due.notStarted');
     const days = Math.round((record.due - now) / DAY);
-    if (days <= 0) return 'due now';
-    if (days === 1) return 'due tomorrow';
-    if (days < 7) return `due in ${days} days`;
-    if (days < 30) return `due in ${Math.round(days / 7)} weeks`;
-    return `due in ${Math.round(days / 30)} months`;
+    if (days <= 0) return t('due.now');
+    if (days === 1) return t('due.tomorrow');
+    if (days < 7) return t('due.days', { n: days });
+    if (days < 30) return t('due.weeks', { n: Math.round(days / 7) });
+    return t('due.months', { n: Math.round(days / 30) });
   }
 
   return { newRecord, review, tally, strength, isDue, dueSkills, strengthLabel, dueLabel };
@@ -7856,7 +8720,8 @@ const __m_src_learn_progress_js = (() => {
 const __m_src_ui_views_js = (() => {
   const { el, paragraphs, pctText, richText } = __m_src_ui_dom_js;
   const { cardRow, derivation, emptyState, feltTable, playingCard, progressBar, rangeGrid, rangeLegend, readout, skillRow, tile } = __m_src_ui_components_js;
-  const { LESSONS, LEVELS, unitsOf, totalMinutes } = __m_src_learn_curriculum_index_js;
+  const { LESSONS, LEVELS, unitsOf, totalMinutes, localiseLesson, localiseLevel, lessonTranslationCoverage } = __m_src_learn_curriculum_index_js;
+  const { t, getLocale, coverage: uiCoverage } = __m_src_i18n_index_js;
   const { DAILY_GOALS, buildPlan, milestones, nextLesson } = __m_src_learn_plan_js;
   const { SKILLS, SKILL_BY_ID, STRANDS } = __m_src_learn_skills_js;
   const { dueLabel, strength, strengthLabel } = __m_src_learn_srs_js;
@@ -7887,6 +8752,7 @@ const __m_src_ui_views_js = (() => {
 
 
 
+
   /**
    * How the adaptive difficulty tier reads to a learner.
    *
@@ -7894,12 +8760,7 @@ const __m_src_ui_views_js = (() => {
    * like it was not working. Naming the tier makes the adaptation legible, and
    * makes moving up feel like the achievement it is.
    */
-  const DIFFICULTY_NAMES = {
-    2: 'Building',
-    3: 'Standard',
-    4: 'Sharp',
-    5: 'Hard',
-  };
+  const difficultyName = (tier) => t(`difficulty.${tier}`);
 
   /* ------------------------------------------------------------------ *
    * Today
@@ -7907,49 +8768,50 @@ const __m_src_ui_views_js = (() => {
 
   function todayView({ profile, onStart, onSetGoal }) {
     const root = el('div.stack');
-    const next = nextLesson(profile);
+    const rawNext = nextLesson(profile);
+    const next = rawNext ? localiseLesson(rawNext) : null;
     const day = courseDay(profile);
     const done = Object.keys(profile.completedLessons || {}).length;
 
     root.append(el('div.hero',
-      el('div.hero-day', `Day ${day} · ${done} of ${LESSONS.length} lessons`),
-      el('h1', next ? next.title : 'The course is complete'),
+      el('div.hero-day', t('today.day', { day, done, total: LESSONS.length })),
+      el('h1', next ? next.title : t('today.complete')),
       el('p', next
-        ? `${next.levelName} · ${next.unit} · about ${next.minutes} minutes`
-        : 'Keep going with daily practice — sessions carry on drawing from everything you have learned.'),
+        ? t('today.lessonMeta', { level: next.levelName, unit: next.unit, minutes: next.minutes })
+        : t('today.completeBody')),
       el('button.btn.btn-good.btn-lg', { onClick: onStart },
-        done === 0 ? 'Start your first lesson' : 'Start today\'s session'),
+        done === 0 ? t('today.startFirst') : t('today.startSession')),
     ));
 
     const strandValues = strandMastery(profile);
     root.append(el('div.tiles',
-      tile(profile.streak, 'day streak'),
-      tile(DIFFICULTY_NAMES[profile.ceiling ?? 3], 'difficulty'),
-      tile(pctText(overallMastery(profile)), 'mastery'),
-      tile(profile.stats?.attempted ? pctText(accuracy(profile)) : '—', 'accuracy'),
+      tile(profile.streak, t('stat.streak')),
+      tile(difficultyName(profile.ceiling ?? 3), t('stat.difficulty')),
+      tile(pctText(overallMastery(profile)), t('stat.mastery')),
+      tile(profile.stats?.attempted ? pctText(accuracy(profile)) : '—', t('stat.accuracy')),
     ));
 
     const weak = weakestSkills(profile, 5);
     if (weak.length) {
       root.append(el('div.card-panel',
-        el('div.section-title', 'Needs work'),
+        el('div.section-title', t('today.needsWork')),
         el('div', weak.map(({ skill, strength: s, record }) =>
           skillRow(skill, s, `${strengthLabel(s)} · ${dueLabel(record)}`))),
         el('p.faint', { style: { marginTop: '.8rem' } },
-          'These are pulled into your sessions automatically. You do not need to do anything about them.'),
+          t('today.needsWorkNote')),
       ));
     }
 
     root.append(el('div.card-panel',
-      el('div.section-title', 'Daily goal'),
+      el('div.section-title', t('today.dailyGoal')),
       el('div.goal-options', DAILY_GOALS.map((goal) => el('button', {
         class: `goal-option ${profile.dailyGoalMinutes === goal.minutes ? 'on' : ''}`,
         onClick: () => onSetGoal(goal.minutes),
       },
       el('span.goal-mins', `${goal.minutes}m`),
       el('span',
-        el('div', { style: { fontWeight: '650' } }, goal.name),
-        el('div.faint', goal.detail),
+        el('div', { style: { fontWeight: '650' } }, t(`goal.${goal.id}`)),
+        el('div.faint', t(`goal.${goal.id}Detail`)),
       ),
       ))),
     ));
@@ -7961,13 +8823,8 @@ const __m_src_ui_views_js = (() => {
 
   function howItWorksPanel() {
     return el('div.card-panel',
-      el('div.section-title', 'How this works'),
-      paragraphs(
-        'This course assumes you know the rules and cannot yet price a decision. So it starts at the maths — no hand rankings, no card notation — and every lesson works towards one of five questions: bet, check, call, raise, or fold, and how much.\n\n'
-        + 'Nothing is memorised. Those odds charts are impossible to hold in your head, and they should be: the goal here is to derive the number at the table in about five seconds, from counting. Shortcuts arrive only after you have worked them out the long way often enough that they feel obvious — and you learn where each one lies to you.\n\n'
-        + 'Cash games, six to ten players, 100 big blinds. No tournaments.\n\n'
-        + 'Skills you get wrong come back tomorrow; skills you get right come back in three days, then a week, then a month. If you find it too easy it gets harder on its own, and you never have to track any of this.',
-      ),
+      el('div.section-title', t('today.howItWorks')),
+      paragraphs(t('today.howItWorksBody')),
     );
   }
 
@@ -7980,11 +8837,12 @@ const __m_src_ui_views_js = (() => {
     const progress = levelProgress(profile);
 
     root.append(el('div.card-panel',
-      el('h1', 'The path'),
-      el('p.muted', `${LESSONS.length} lessons across 6 levels, about ${Math.round(totalMinutes() / 60)} hours of material, designed to be spread across a year at 15 to 45 minutes a day.`),
+      el('h1', t('path.title')),
+      el('p.muted', t('path.summary', { lessons: LESSONS.length, hours: Math.round(totalMinutes() / 60) })),
     ));
 
-    for (const level of LEVELS) {
+    for (const rawLevel of LEVELS) {
+      const level = localiseLevel(rawLevel);
       const p = progress.find((x) => x.level === level.level);
       const locked = !p.unlocked;
       const card = el(`div.level-card${locked ? '.locked' : ''}${p.complete ? '.done' : ''}`);
@@ -8011,11 +8869,13 @@ const __m_src_ui_views_js = (() => {
 
       if (locked) {
         body.append(el('p.muted', { style: { marginTop: '.8rem' } },
-          `Finish level ${level.level - 1} to unlock this.`));
+          t('path.locked', { n: level.level - 1 })));
       } else {
         for (const unit of unitsOf(level.level)) {
-          body.append(el('div.unit-name', unit.name));
-          for (const lesson of unit.lessons) {
+          const unitName = localiseLesson({ ...unit.lessons[0], level: rawLevel.level }).unit;
+          body.append(el('div.unit-name', unitName));
+          for (const rawLesson of unit.lessons) {
+            const lesson = localiseLesson({ ...rawLesson, level: rawLevel.level });
             const isDone = Boolean(profile.completedLessons?.[lesson.id]);
             body.append(el('button', {
               class: `lesson-row ${isDone ? 'done' : ''} ${lesson.checkpoint ? 'checkpoint' : ''}`,
@@ -8024,7 +8884,7 @@ const __m_src_ui_views_js = (() => {
             el('span.lesson-check', isDone ? '✓' : ''),
             el('span', { style: { flex: '1' } },
               lesson.title,
-              lesson.checkpoint && el('span.badge.accent', { style: { marginLeft: '.5rem' } }, 'checkpoint'),
+              lesson.checkpoint && el('span.badge.accent', { style: { marginLeft: '.5rem' } }, t('path.checkpoint')),
             ),
             el('span.lesson-mins', `${lesson.minutes}m`),
             ));
@@ -8043,19 +8903,21 @@ const __m_src_ui_views_js = (() => {
 
   function planPanel() {
     const panel = el('div.card-panel',
-      el('div.section-title', 'The year ahead'),
-      el('p.muted', 'Where a learner doing one session a day arrives, and when.'),
+      el('div.section-title', t('path.yearAhead')),
+      el('p.muted', t('path.yearAheadNote')),
     );
 
     for (const m of milestones()) {
       panel.append(el('div.skill-row',
-        el('span.badge.accent', `Day ${m.day}`),
-        el('span.skill-name', el('strong', m.levelName), el('div.faint', m.promise)),
+        el('span.badge.accent', t('path.dayLabel', { day: m.day })),
+        el('span.skill-name',
+          el('strong', localiseLevel({ level: m.level, name: m.levelName, promise: m.promise }).name),
+          el('div.faint', localiseLevel({ level: m.level, name: m.levelName, promise: m.promise }).promise)),
       ));
     }
 
     panel.append(el('p.faint', { style: { marginTop: '.8rem' } },
-      'Miss a week and nothing is lost. Sessions resume from what you actually know, not from where the calendar says you should be.'));
+      t('path.missNote')));
     return panel;
   }
 
@@ -8068,21 +8930,21 @@ const __m_src_ui_views_js = (() => {
     const now = Date.now();
 
     root.append(el('div.card-panel',
-      el('h1', 'Progress'),
+      el('h1', t('progress.title')),
       el('div.tiles', { style: { marginTop: '1rem' } },
-        tile(courseDay(profile), 'days active'),
-        tile(profile.longestStreak, 'best streak'),
-        tile(profile.stats?.attempted || 0, 'questions'),
-        tile(pctText(overallMastery(profile, now)), 'mastery'),
+        tile(courseDay(profile), t('stat.daysActive')),
+        tile(profile.longestStreak, t('stat.bestStreak')),
+        tile(profile.stats?.attempted || 0, t('stat.questions')),
+        tile(pctText(overallMastery(profile, now)), t('stat.mastery')),
       ),
     ));
 
     const strands = strandMastery(profile, now);
     root.append(el('div.card-panel',
-      el('div.section-title', 'Mastery by area'),
+      el('div.section-title', t('progress.byArea')),
       el('div', Object.entries(STRANDS).map(([id, strand]) => el('div.skill-row',
         el('span.skill-dot', { style: { background: `var(--${strand.colour})` } }),
-        el('span.skill-name', strand.name),
+        el('span.skill-name', t(`strand.${id}`)),
         el('span.faint', pctText(strands[id] || 0)),
         el('span.skill-bar', progressBar(strands[id] || 0, (strands[id] || 0) >= 0.7 ? 'good' : '')),
       ))),
@@ -8090,12 +8952,12 @@ const __m_src_ui_views_js = (() => {
 
     const started = SKILLS.filter((s) => profile.skills?.[s.id]?.attempts);
     if (started.length) {
-      const panel = el('div.card-panel', el('div.section-title', `Every skill (${started.length} of ${SKILLS.length} started)`));
+      const panel = el('div.card-panel', el('div.section-title', t('progress.allSkills', { started: started.length, total: SKILLS.length })));
       const byStrand = {};
       for (const skill of started) (byStrand[skill.strand] ||= []).push(skill);
 
       for (const [strandId, skills] of Object.entries(byStrand)) {
-        panel.append(el('div.unit-name', STRANDS[strandId].name));
+        panel.append(el('div.unit-name', t(`strand.${strandId}`)));
         for (const skill of skills) {
           const record = profile.skills[skill.id];
           const s = strength(record, now);
@@ -8104,12 +8966,12 @@ const __m_src_ui_views_js = (() => {
       }
       root.append(panel);
     } else {
-      root.append(el('div.card-panel', emptyState('📊', 'Nothing tracked yet', 'Finish a session and your skill strengths appear here.')));
+      root.append(el('div.card-panel', emptyState('📊', t('progress.nothingYet'), t('progress.nothingYetBody'))));
     }
 
     if (profile.history?.length) {
       root.append(el('div.card-panel',
-        el('div.section-title', 'Lessons completed'),
+        el('div.section-title', t('progress.lessonsCompleted')),
         el('div.heatmap', profile.history.slice(-120).map((h) => el('div', {
           class: `heat-cell ${h.score >= 0.9 ? 'l3' : h.score >= 0.7 ? 'l2' : 'l1'}`,
           title: `${h.lessonId} — ${Math.round(h.score * 100)}%`,
@@ -8117,17 +8979,27 @@ const __m_src_ui_views_js = (() => {
       ));
     }
 
+    if (getLocale() === 'zh') {
+      const uiPct = Math.round(uiCoverage('zh') * 100);
+      const lessonPct = Math.round(lessonTranslationCoverage() * 100);
+      root.append(el('div.card-panel',
+        el('div.section-title', t('lang.switch')),
+        el('p.muted', t('lang.coverage', { percent: `${Math.round((uiPct + lessonPct) / 2)}%` })),
+        el('p.faint', `界面 ${uiPct}% · 课程内容 ${lessonPct}% · 练习题目仍为英文`),
+      ));
+    }
+
     root.append(backupPanel({ profile, onImport }));
 
     root.append(el('div.card-panel',
-      el('div.section-title', 'Start over'),
-      el('p.muted', 'Erasing is permanent. Save a backup first if there is any chance you want this back.'),
+      el('div.section-title', t('progress.startOver')),
+      el('p.muted', t('progress.startOverBody')),
       el('button.btn', {
         style: { marginTop: '.6rem' },
         onClick: () => {
-          if (confirm('Erase all progress and start over? This cannot be undone.')) onReset();
+          if (confirm(t('progress.resetConfirm'))) onReset();
         },
-      }, 'Reset all progress'),
+      }, t('progress.reset')),
     ));
 
     return root;
@@ -8144,8 +9016,8 @@ const __m_src_ui_views_js = (() => {
   function backupPanel({ profile, onImport }) {
     const status = el('div');
     const panel = el('div.card-panel',
-      el('div.section-title', 'Save your progress'),
-      el('p.muted', 'Everything is stored in this browser and never sent anywhere. Save a backup file to move your progress to another browser or machine, or to keep it safe.'),
+      el('div.section-title', t('progress.save')),
+      el('p.muted', t('progress.saveBody')),
     );
 
     const downloadBtn = el('button.btn.btn-primary', {
@@ -8160,12 +9032,12 @@ const __m_src_ui_views_js = (() => {
           link.click();
           link.remove();
           setTimeout(() => URL.revokeObjectURL(url), 1000);
-          showStatus(`Saved as ${name}. Keep it somewhere you will find it again.`, 'correct');
+          showStatus(t('progress.saved', { name }), 'correct');
         } catch {
-          showStatus('This browser blocked the download. Use "Show backup text" below and copy it instead.', 'neutral');
+          showStatus(t('progress.downloadBlocked'), 'neutral');
         }
       },
-    }, 'Download backup file');
+    }, t('progress.download'));
 
     const showTextBtn = el('button.btn', {
       onClick: () => {
@@ -8179,13 +9051,13 @@ const __m_src_ui_views_js = (() => {
           },
         }, exportProfile(profile));
         status.replaceChildren(
-          el('p.faint', { style: { marginTop: '.6rem' } }, 'Select all of this and copy it somewhere safe.'),
+          el('p.faint', { style: { marginTop: '.6rem' } }, t('progress.copyNote')),
           box,
         );
         box.focus();
         box.select();
       },
-    }, 'Show backup text');
+    }, t('progress.showText'));
 
     const fileInput = el('input', {
       type: 'file',
@@ -8199,13 +9071,13 @@ const __m_src_ui_views_js = (() => {
       },
     });
 
-    const restoreBtn = el('button.btn', { onClick: () => fileInput.click() }, 'Restore from file');
+    const restoreBtn = el('button.btn', { onClick: () => fileInput.click() }, t('progress.restoreFile'));
 
     const pasteBtn = el('button.btn.btn-ghost', {
       onClick: () => {
         const box = el('textarea', {
           rows: '6',
-          placeholder: 'Paste your backup text here…',
+          placeholder: t('progress.pastePlaceholder'),
           style: {
             width: '100%', marginTop: '.6rem', fontFamily: 'var(--mono)', fontSize: '.75rem',
             background: 'var(--bg-sunken)', color: 'var(--text)',
@@ -8217,11 +9089,11 @@ const __m_src_ui_views_js = (() => {
           el('button.btn.btn-primary', {
             style: { marginTop: '.6rem' },
             onClick: () => applyImport(box.value),
-          }, 'Restore this'),
+          }, t('progress.restoreThis')),
         );
         box.focus();
       },
-    }, 'Paste backup text');
+    }, t('progress.pasteText'));
 
     function applyImport(text) {
       const result = importProfile(text);
@@ -8229,7 +9101,7 @@ const __m_src_ui_views_js = (() => {
         showStatus(result.error, 'wrong');
         return;
       }
-      if (!confirm(`${result.summary}\n\nThis replaces your current progress. Continue?`)) return;
+      if (!confirm(t('progress.replaceConfirm', { summary: result.summary }))) return;
       onImport(result.profile);
     }
 
@@ -8261,8 +9133,8 @@ const __m_src_ui_views_js = (() => {
     const root = el('div.stack');
 
     root.append(el('div.card-panel',
-      el('h1', 'Sandbox'),
-      el('p.muted', 'Bring a hand that puzzled you. Change one thing at a time and watch what happens to the numbers.'),
+      el('h1', t('sandbox.title')),
+      el('p.muted', t('sandbox.intro')),
     ));
 
     root.append(equityTool());
@@ -8272,12 +9144,12 @@ const __m_src_ui_views_js = (() => {
   }
 
   function equityTool() {
-    const panel = el('div.card-panel', el('div.section-title', 'Equity calculator'));
+    const panel = el('div.card-panel', el('div.section-title', t('sandbox.equity')));
     const output = el('div');
 
-    const heroInput = field('Your hand', 'AcKc');
-    const villainInput = field('Their hand or range', 'QQ');
-    const boardInput = field('Board (leave blank for preflop)', '');
+    const heroInput = field(t('sandbox.yourHand'), 'AcKc');
+    const villainInput = field(t('sandbox.theirHand'), 'QQ');
+    const boardInput = field(t('sandbox.board'), '');
 
     const run = () => {
       try {
@@ -8306,9 +9178,9 @@ const __m_src_ui_views_js = (() => {
           against = `against ${range.size} hands (${size.combos} combinations, ${pctText(size.percent, 1)} of all hands)`;
         }
 
-        const rows = [[pctText(result.equity, 1), 'your equity']];
+        const rows = [[pctText(result.equity, 1), t('sandbox.yourEquity')]];
         if (result.win !== undefined) {
-          rows.push([pctText(result.win, 1), 'you win'], [pctText(result.tie, 1), 'you chop']);
+          rows.push([pctText(result.win, 1), t('sandbox.youWin')], [pctText(result.tie, 1), t('sandbox.youChop')]);
         }
 
         const detail = [];
@@ -8328,7 +9200,7 @@ const __m_src_ui_views_js = (() => {
         output.replaceChildren(
           readout(rows),
           el('p.faint', { style: { marginTop: '.7rem' } },
-            `${against}. ${result.exact ? `Exact, from all ${result.trials} runouts.` : `Estimated from ${result.trials} simulations.`}`),
+            `${against} ${result.exact ? t('sandbox.exactNote', { trials: result.trials }) : t('sandbox.estimateNote', { trials: result.trials })}`),
           detail.length ? el('div.derivation', { style: { marginTop: '.8rem' } }, el('ol', detail.map((d) => el('li', d)))) : null,
         );
       } catch (err) {
@@ -8346,11 +9218,11 @@ const __m_src_ui_views_js = (() => {
   }
 
   function oddsTool() {
-    const panel = el('div.card-panel', el('div.section-title', 'Pot odds and price'));
+    const panel = el('div.card-panel', el('div.section-title', t('sandbox.potOdds')));
     const output = el('div');
-    const potInput = field('Pot before their bet', '100');
-    const betInput = field('Their bet', '50');
-    const outsInput = field('Your outs (optional)', '9');
+    const potInput = field(t('sandbox.potBefore'), '10');
+    const betInput = field(t('sandbox.theirBet'), '5');
+    const outsInput = field(t('sandbox.yourOuts'), '9');
 
     const run = () => {
       const pot = Number(potInput.input.value) || 0;
@@ -8358,7 +9230,7 @@ const __m_src_ui_views_js = (() => {
       const outs = Number(outsInput.input.value) || 0;
 
       if (pot <= 0 || bet <= 0) {
-        output.replaceChildren(el('p.faint', 'Enter a pot and a bet.'));
+        output.replaceChildren(el('p.faint', t('sandbox.enterPotAndBet')));
         return;
       }
 
@@ -8369,9 +9241,9 @@ const __m_src_ui_views_js = (() => {
 
       const children = [
         readout([
-          [pctText(p.breakEven, 1), 'equity needed'],
-          [`${round(bet / pot * 100, 0)}%`, 'of pot'],
-          [pctText(mdf.mdf, 0), 'you must defend'],
+          [pctText(p.breakEven, 1), t('sandbox.equityNeeded')],
+          [`${round(bet / pot * 100, 0)}%`, t('sandbox.ofPot')],
+          [pctText(mdf.mdf, 0), t('sandbox.mustDefend')],
         ]),
         el('div.derivation', { style: { marginTop: '.8rem' } }, el('ol', p.steps.map((s) => el('li', s)))),
       ];
@@ -8380,8 +9252,8 @@ const __m_src_ui_views_js = (() => {
         const verdictTurn = turn.exact >= p.breakEven;
         children.push(el('div', { style: { marginTop: '.8rem' } },
           readout([
-            [pctText(turn.exact, 1), 'one card'],
-            [pctText(flop.exact, 1), 'two cards'],
+            [pctText(turn.exact, 1), t('sandbox.oneCard')],
+            [pctText(flop.exact, 1), t('sandbox.twoCards')],
           ]),
           el('p', { style: { marginTop: '.7rem' }, html: richText(
             `With ${outs} outs and one card to come you have **${pctText(turn.exact, 1)}** against a price of **${pctText(p.breakEven, 1)}** — `
@@ -8403,7 +9275,7 @@ const __m_src_ui_views_js = (() => {
   }
 
   function rangeTool() {
-    const panel = el('div.card-panel', el('div.section-title', 'Range explorer'));
+    const panel = el('div.card-panel', el('div.section-title', t('sandbox.rangeExplorer')));
     const selected = new Set(parseRange(RFI.BTN));
     const info = el('div');
     const gridHolder = el('div');
@@ -8421,11 +9293,11 @@ const __m_src_ui_views_js = (() => {
       const size = rangeSize(selected);
       info.replaceChildren(
         readout([
-          [String(selected.size), 'hands'],
-          [String(size.combos), 'combos'],
-          [pctText(size.percent, 1), 'of all hands'],
+          [String(selected.size), t('sandbox.hands')],
+          [String(size.combos), t('sandbox.combos')],
+          [pctText(size.percent, 1), t('sandbox.ofAllHands')],
         ]),
-        el('p.faint', { style: { marginTop: '.6rem', wordBreak: 'break-word' } }, rangeToString(selected) || 'Nothing selected.'),
+        el('p.faint', { style: { marginTop: '.6rem', wordBreak: 'break-word' } }, rangeToString(selected) || t('sandbox.nothingSelected')),
       );
     };
 
@@ -8439,7 +9311,7 @@ const __m_src_ui_views_js = (() => {
       }, pos)),
       el('button.btn.btn-sm', {
         onClick: () => { selected.clear(); draw(); },
-      }, 'Clear'),
+      }, t('sandbox.clear')),
     );
 
     draw();
@@ -8458,6 +9330,7 @@ const __m_src_ui_views_js = (() => {
 /* src/ui/exercise.js */
 const __m_src_ui_exercise_js = (() => {
   const { el, line, paragraphs, richText, announce } = __m_src_ui_dom_js;
+  const { t } = __m_src_i18n_index_js;
   const { cardRow, feltTable, playingCard, rangeGrid, rangeLegend } = __m_src_ui_components_js;
   const { grade } = __m_src_learn_exercises_js;
   /**
@@ -8476,6 +9349,7 @@ const __m_src_ui_exercise_js = (() => {
    * so by the last question the learner can see the chain of reasoning they just
    * built rather than a single isolated question.
    */
+
 
 
 
@@ -8538,7 +9412,7 @@ const __m_src_ui_exercise_js = (() => {
 
       const step = exercise.steps[index];
       current.replaceChildren(
-        el('div.step-counter', `Step ${index + 1} of ${exercise.steps.length}`),
+        el('div.step-counter', t('session.stepOf', { n: index + 1, total: exercise.steps.length })),
         el('div.exercise-prompt', { html: richText(step.prompt) }),
         renderSingle(step, exercise, (correct, displayAnswer) => {
           results.push(correct);
@@ -8554,7 +9428,7 @@ const __m_src_ui_exercise_js = (() => {
           showStep();
         }),
       );
-      announce(`Step ${index + 1} of ${exercise.steps.length}`);
+      announce(t('session.stepOf', { n: index + 1, total: exercise.steps.length }));
     };
 
     const finish = () => {
@@ -8568,7 +9442,7 @@ const __m_src_ui_exercise_js = (() => {
         el('button.btn.btn-primary.btn-lg', {
           style: { marginTop: '1rem' },
           onClick: () => onComplete({ correct: allRight, score }),
-        }, 'Continue'),
+        }, t('session.continue')),
       );
     };
 
@@ -8609,9 +9483,9 @@ const __m_src_ui_exercise_js = (() => {
       ? el('button.btn.btn-ghost.btn-sm', {
         onClick: () => {
           hintBtn.remove();
-          feedbackArea.append(el('div.hint-box', { html: `<strong>Hint:</strong> ${richText(item.hint)}` }));
+          feedbackArea.append(el('div.hint-box', { html: `<strong>${t('session.hint')}:</strong> ${richText(item.hint)}` }));
         },
-      }, 'Show a hint')
+      }, t('session.showHint'))
       : null;
 
     const checkBtn = el('button.btn.btn-primary', {
@@ -8626,16 +9500,16 @@ const __m_src_ui_exercise_js = (() => {
         if (hintBtn) hintBtn.remove();
 
         feedbackArea.replaceChildren(buildFeedback(item, result, input.describe(response)));
-        announce(result.correct ? 'Correct' : 'Not quite');
+        announce(result.correct ? t('session.correct') : t('session.notQuite'));
 
         const nextBtn = el('button.btn.btn-primary.btn-lg', {
           style: { marginTop: '1rem' },
           onClick: () => onAnswered(result.correct, input.describe(response)),
-        }, 'Continue');
+        }, t('session.continue'));
         feedbackArea.append(nextBtn);
         nextBtn.focus();
       },
-    }, 'Check');
+    }, t('session.check'));
 
     controls.append(checkBtn, el('span.spacer'), hintBtn);
     wrap.append(inputArea, controls, feedbackArea);
@@ -8655,18 +9529,18 @@ const __m_src_ui_exercise_js = (() => {
       : [];
 
     const head = result.correct
-      ? '✓ Correct'
+      ? `✓ ${t('session.correct')}`
       : result.close
-        ? '✗ Close, but not quite'
-        : '✗ Not quite';
+        ? `✗ ${t('session.closeButNot')}`
+        : `✗ ${t('session.notQuite')}`;
 
     const body = el('div.feedback-body');
 
     if (!result.correct) {
-      body.append(el('p', { html: `<strong>You said ${given}.</strong> ${richText(correctAnswerText(item))}` }));
+      body.append(el('p', { html: `<strong>${richText(t('session.youSaid', { answer: given }))}</strong> ${richText(correctAnswerText(item))}` }));
     }
     if (result.errors !== undefined && !result.correct) {
-      body.append(el('p.muted', `You missed ${result.missing} hands and included ${result.extra} that should not be there.`));
+      body.append(el('p.muted', t('session.gridFeedback', { missing: result.missing, extra: result.extra })));
     }
     for (const text of explain) body.append(paragraphs(text));
 
@@ -8679,15 +9553,15 @@ const __m_src_ui_exercise_js = (() => {
   function correctAnswerText(item) {
     switch (item.kind) {
       case 'choice':
-        return `The answer is **${item.options[item.answer]}**.`;
+        return t('session.answerIs', { answer: `**${item.options[item.answer]}**` });
       case 'numeric':
-        return `The answer is **${item.answer}${item.unit ? ` ${item.unit}` : ''}**.`;
+        return t('session.answerIs', { answer: `**${item.answer}${item.unit ? ` ${item.unit}` : ''}**` });
       case 'slider':
-        return `The answer is **${item.answer}%**.`;
+        return t('session.answerIs', { answer: `**${item.answer}%**` });
       case 'multi':
-        return `The answer is **${item.answer.map((i) => item.options[i]).join(', ') || 'none of them'}**.`;
+        return t('session.answerIs', { answer: `**${item.answer.map((i) => item.options[i]).join(', ') || t('session.nothing')}**` });
       default:
-        return 'The correct selection is shown above.';
+        return t('session.selectionShown');
     }
   }
 
@@ -8736,7 +9610,7 @@ const __m_src_ui_exercise_js = (() => {
           else if (i === chosen) b.classList.add('wrong');
         });
       },
-      describe: (r) => (r === null ? 'nothing' : item.options[r]),
+      describe: (r) => (r === null ? t('session.nothing') : item.options[r]),
     };
   }
 
@@ -8757,7 +9631,7 @@ const __m_src_ui_exercise_js = (() => {
 
     return {
       node: el('div',
-        el('p.faint', 'Select all that apply, then check.'),
+        el('p.faint', t('session.selectAll')),
         el('div.options', buttons),
       ),
       lock: () => {
@@ -8769,7 +9643,7 @@ const __m_src_ui_exercise_js = (() => {
           else if (picked.has(i)) b.classList.add('wrong');
         });
       },
-      describe: (r) => (r?.length ? r.map((i) => item.options[i]).join(', ') : 'nothing'),
+      describe: (r) => (r?.length ? r.map((i) => item.options[i]).join(', ') : t('session.nothing')),
     };
   }
 
@@ -8848,7 +9722,7 @@ const __m_src_ui_exercise_js = (() => {
     };
 
     const container = el('div',
-      el('p.faint', `Choose ${item.selectCount}.`),
+      el('p.faint', t('session.chooseN', { n: item.selectCount })),
       render(),
     );
 
@@ -8866,9 +9740,9 @@ const __m_src_ui_exercise_js = (() => {
           dim: !want.has(card),
         })));
         container.replaceChild(row, container.lastChild);
-        container.append(el('p.faint', { style: { marginTop: '.5rem' } }, 'Highlighted cards are the five that play.'));
+        container.append(el('p.faint', { style: { marginTop: '.5rem' } }, t('session.cardsHighlighted')));
       },
-      describe: (r) => (r?.length ? `${r.length} cards` : 'nothing'),
+      describe: (r) => (r?.length ? `${r.length}` : t('session.nothing')),
     };
   }
 
@@ -8891,7 +9765,7 @@ const __m_src_ui_exercise_js = (() => {
         }),
         rangeLegend(mode),
         mode === 'select' && el('p.faint.center', { style: { marginTop: '.5rem' } },
-          `${selected.size} hands selected. Drag to select several at once.`),
+          t('session.handsSelected', { n: selected.size })),
       );
     };
 
@@ -8910,6 +9784,8 @@ const __m_src_ui_exercise_js = (() => {
 /* src/ui/session.js */
 const __m_src_ui_session_js = (() => {
   const { el, paragraphs, richText, announce } = __m_src_ui_dom_js;
+  const { t } = __m_src_i18n_index_js;
+  const { localiseLesson } = __m_src_learn_curriculum_index_js;
   const { progressBar } = __m_src_ui_components_js;
   const { renderExercise } = __m_src_ui_exercise_js;
   const { completeLesson, recordAnswer, recordSkillBatch } = __m_src_learn_progress_js;
@@ -8924,6 +9800,8 @@ const __m_src_ui_session_js = (() => {
    * Results are written back to the profile as they happen rather than at the
    * end, so a learner who closes the tab halfway through keeps their progress.
    */
+
+
 
 
 
@@ -8953,7 +9831,7 @@ const __m_src_ui_session_js = (() => {
 
     const drawHead = () => {
       head.replaceChildren(
-        el('button.btn.btn-ghost.btn-sm', { onClick: confirmExit, 'aria-label': 'Leave session' }, '✕'),
+        el('button.btn.btn-ghost.btn-sm', { onClick: confirmExit, 'aria-label': t('session.leave') }, '✕'),
         progressBar(index / screens.length),
         el('span.faint', `${Math.min(index + 1, screens.length)}/${screens.length}`),
       );
@@ -9011,7 +9889,7 @@ const __m_src_ui_session_js = (() => {
       const { exercise } = screen;
       body.replaceChildren(
         el('div.card-panel',
-          screen.label && el('div.section-title', screen.label),
+          el('div.section-title', screen.label || localiseLesson(screen.lesson).title),
           renderExercise(exercise, ({ correct, score }) => {
             noteResult(exercise.skill, correct);
             if (screen.reviewSkill) {
@@ -9052,31 +9930,35 @@ const __m_src_ui_session_js = (() => {
    * ------------------------------------------------------------------ */
 
   function conceptScreen(screen, onNext) {
-    const { concept, lesson, position, total } = screen;
+    const { lesson: rawLesson, position, total, conceptIndex } = screen;
+    const lesson = localiseLesson(rawLesson);
+    const concept = lesson.concepts[conceptIndex];
     return el('div.card-panel.concept',
-      el('div.concept-kicker', `${lesson.levelName} · ${lesson.unit} · idea ${position} of ${total}`),
+      el('div.concept-kicker', t('session.ideaOf', {
+        level: lesson.levelName, unit: lesson.unit, n: position, total,
+      })),
       el('h2', concept.title),
       paragraphs(concept.body, 'concept-body'),
-      el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1.4rem' }, onClick: onNext }, 'Got it'),
+      el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1.4rem' }, onClick: onNext }, t('session.gotIt')),
     );
   }
 
   function takeawayScreen(screen, onNext) {
-    const { lesson } = screen;
+    const lesson = localiseLesson(screen.lesson);
     return el('div.card-panel.concept',
-      el('div.concept-kicker', 'Take this away'),
+      el('div.concept-kicker', t('session.takeaway')),
       el('h2', lesson.title),
       el('div.takeaway', { style: { marginTop: '1rem' }, html: richText(lesson.takeaway) }),
-      el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1.4rem' }, onClick: onNext }, 'Finish lesson'),
+      el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1.4rem' }, onClick: onNext }, t('session.finishLesson')),
     );
   }
 
   function summaryScreen({ answeredCount, correctCount, accuracy, minutes, profile, onExit }) {
     const verdict = accuracy >= 0.9
-      ? { icon: '🎯', title: 'Sharp session', note: 'That accuracy means the ideas are landing. The spacing algorithm will push these skills further out and bring you something harder.' }
+      ? { icon: '🎯', title: t('summary.sharp'), note: t('summary.sharpNote') }
       : accuracy >= 0.7
-        ? { icon: '✓', title: 'Solid work', note: 'A few misses is exactly right. If everything were easy you would not be learning anything.' }
-        : { icon: '🌱', title: 'Session done', note: 'A tough one. The skills you missed are already scheduled to come back tomorrow, which is precisely how this is meant to work.' };
+        ? { icon: '✓', title: t('summary.solid'), note: t('summary.solidNote') }
+        : { icon: '🌱', title: t('summary.done'), note: t('summary.doneNote') };
 
     return el('div.card-panel.center',
       el('div', { style: { fontSize: '3rem' } }, verdict.icon),
@@ -9086,20 +9968,20 @@ const __m_src_ui_session_js = (() => {
       el('div.result-grid', { style: { margin: '1.5rem 0' } },
         el('div',
           el('div.summary-big', `${correctCount}/${answeredCount}`),
-          el('div.tile-label', 'correct'),
+          el('div.tile-label', t('summary.correctLabel')),
         ),
         el('div',
           el('div.summary-big', `${Math.round(accuracy * 100)}%`),
-          el('div.tile-label', 'accuracy'),
+          el('div.tile-label', t('summary.accuracyLabel')),
         ),
         el('div',
           el('div.summary-big', String(profile.streak)),
-          el('div.tile-label', profile.streak === 1 ? 'day streak' : 'day streak'),
+          el('div.tile-label', t('summary.streakLabel')),
         ),
       ),
 
-      el('p.faint', `About ${minutes} minute${minutes === 1 ? '' : 's'}. Total XP ${profile.xp}.`),
-      el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1rem' }, onClick: onExit }, 'Done for today'),
+      el('p.faint', t('summary.time', { minutes, xp: profile.xp })),
+      el('button.btn.btn-primary.btn-lg', { style: { marginTop: '1rem' }, onClick: onExit }, t('summary.doneForToday')),
     );
   }
 
@@ -9118,24 +10000,25 @@ const __m_src_ui_session_js = (() => {
           screens.push({
             type: 'concept',
             concept,
+            conceptIndex: i,
             lesson,
             position: i + 1,
             total: lesson.concepts.length,
           });
         });
         for (const exercise of item.exercises) {
-          screens.push({ type: 'exercise', exercise, label: lesson.title });
+          screens.push({ type: 'exercise', exercise, lesson });
         }
         screens.push({ type: 'takeaway', lesson });
       } else if (item.type === 'review') {
         screens.push({
           type: 'exercise',
           exercise: item.exercise,
-          label: 'Review',
+          label: t('session.review'),
           reviewSkill: item.skill,
         });
       } else {
-        screens.push({ type: 'exercise', exercise: item.exercise, label: 'Practice' });
+        screens.push({ type: 'exercise', exercise: item.exercise, label: t('session.practice') });
       }
     }
 
@@ -9149,6 +10032,9 @@ const __m_src_ui_session_js = (() => {
 (() => {
   const { el, mount } = __m_src_ui_dom_js;
   const { statPill } = __m_src_ui_components_js;
+  const { registerStrings, setLocale, getLocale, otherLocale, localeInfo, t, coverage } = __m_src_i18n_index_js;
+  const { UI_EN, UI_ZH } = __m_src_i18n_ui_js;
+  const { lessonTranslationCoverage } = __m_src_learn_curriculum_index_js;
   const { pathView, progressView, sandboxView, todayView } = __m_src_ui_views_js;
   const { sessionView } = __m_src_ui_session_js;
   const { buildSession } = __m_src_learn_plan_js;
@@ -9169,20 +10055,30 @@ const __m_src_ui_session_js = (() => {
 
 
 
+  registerStrings('en', UI_EN);
+  registerStrings('zh', UI_ZH);
 
 
 
-  const TABS = [
-    { id: 'today', label: 'Today' },
-    { id: 'path', label: 'Path' },
-    { id: 'progress', label: 'Progress' },
-    { id: 'sandbox', label: 'Sandbox' },
-  ];
+
+
+
+
+  const TAB_IDS = ['today', 'path', 'progress', 'sandbox'];
 
   const app = document.getElementById('app');
 
   let profile = registerVisit(load());
+  // The learner's language is part of their profile, so it survives a reload and
+  // travels with an exported backup.
+  setLocale(profile.locale || getLocale());
+  applyLocaleToDocument();
   save(profile);
+
+  /** Keep the document's lang attribute in step, so the CJK font stack applies. */
+  function applyLocaleToDocument() {
+    document.documentElement.setAttribute('lang', getLocale());
+  }
 
   let route = { name: 'today' };
 
@@ -9219,7 +10115,7 @@ const __m_src_ui_session_js = (() => {
         el('div.topbar-inner',
           el('button.brand', { onClick: () => navigate('today') },
             el('span.brand-mark', '♠'),
-            el('span', 'Hold\'em Dojo'),
+            el('span', t('app.name')),
           ),
           topbarSlot,
         ),
@@ -9229,18 +10125,34 @@ const __m_src_ui_session_js = (() => {
     );
   }
 
+  function switchLanguage() {
+    const next = otherLocale();
+    setLocale(next);
+    applyLocaleToDocument();
+    setProfile({ ...profile, locale: next });
+    // A session in progress keeps its current question in the old language;
+    // everything generated afterwards uses the new one. Re-rendering mid-question
+    // would throw away an answer the learner had already typed.
+    render();
+  }
+
   function renderChrome() {
     mount(topbarSlot,
+      el('button.btn.btn-sm.lang-toggle', {
+        onClick: switchLanguage,
+        title: t('lang.switch'),
+        'aria-label': `${t('lang.switch')}: ${localeInfo(otherLocale()).native}`,
+      }, localeInfo(otherLocale()).short),
       statPill('🔥', profile.streak, 'streak'),
       statPill('◆', profile.xp, 'xp'),
     );
 
     const inSession = route.name === 'session';
     navSlot.style.display = inSession ? 'none' : '';
-    mount(navSlot, TABS.map((tab) => el('button', {
-      'aria-current': route.name === tab.id ? 'page' : null,
-      onClick: () => navigate(tab.id),
-    }, tab.label)));
+    mount(navSlot, TAB_IDS.map((id) => el('button', {
+      'aria-current': route.name === id ? 'page' : null,
+      onClick: () => navigate(id),
+    }, t(`nav.${id}`))));
   }
 
   function render() {
@@ -9347,10 +10259,10 @@ const __m_src_ui_session_js = (() => {
   window.addEventListener('error', (event) => {
     if (!mainSlot) return;
     mount(mainSlot, el('div.card-panel',
-      el('h2', 'Something broke'),
-      el('p.muted', 'Your progress is saved. Reloading usually fixes it.'),
+      el('h2', t('error.title')),
+      el('p.muted', t('error.body')),
       el('pre', { style: { overflow: 'auto', fontSize: '.8rem', color: 'var(--bad)' } }, String(event.message)),
-      el('button.btn.btn-primary', { onClick: () => location.reload() }, 'Reload'),
+      el('button.btn.btn-primary', { onClick: () => location.reload() }, t('error.reload')),
     ));
   });
 
