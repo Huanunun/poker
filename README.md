@@ -8,16 +8,33 @@ It runs entirely in your browser. There is no build step, no account, no server,
 and no dependencies. Your progress lives in local storage and is never sent
 anywhere.
 
+## Getting it
+
+**Offline, no install, nothing to run.** Download
+[`dist/holdem-dojo.html`](dist/holdem-dojo.html) and double-click it. One file,
+355 KB, opens in any browser. It makes zero network requests — verified by
+`npm run verify:offline`, which loads it with the browser forced offline and
+fails if anything reaches out. Once it is on your disk it works on a plane, and
+it keeps working if this repository disappears.
+
+**In a browser, via GitHub Pages.** Pushes publish the app automatically. Enable
+it once under Settings → Pages → Source → GitHub Actions; after that it lives at
+`https://<user>.github.io/poker/`.
+
+**From source**, if you want to change it:
+
 ```bash
-npm start          # then open http://localhost:8080
-npm test           # 83 unit tests, no dependencies
-npm run smoke      # 27 browser checks — needs `npm i playwright` and a running server
+npm start              # http://localhost:8080
+npm test               # 83 unit tests, no dependencies
+npm run build          # regenerate the single-file build
+npm run smoke          # 27 browser checks (needs playwright + a running server)
+npm run verify:offline # prove the built file needs no network
 ```
 
-A server is needed only because ES modules will not load from `file://`.
+The dev server exists only because ES modules will not load from `file://`;
 `tools/serve.js` is sixty lines of Node with no dependencies. The app and the
-unit tests need nothing installed at all; Playwright is required only for the
-browser smoke test.
+unit tests need nothing installed. Playwright is required only for the two
+browser checks.
 
 ---
 

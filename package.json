@@ -6,9 +6,11 @@
   "private": true,
   "scripts": {
     "test": "node test/run.js",
+    "build": "node tools/bundle.js",
     "start": "node tools/serve.js",
     "serve": "node tools/serve.js",
-    "smoke": "node tools/smoke.js"
+    "smoke": "node tools/smoke.js",
+    "verify:offline": "node tools/verify-offline.js"
   },
   "engines": {
     "node": ">=18"
