@@ -1,7 +1,7 @@
 {
   "name": "holdem-dojo",
   "version": "0.1.0",
-  "description": "A Duolingo-style learning system that takes a Texas Hold'em novice to mastery through daily micro-lessons, derived intuition, and procedurally generated drills.",
+  "description": "A personal Texas Hold'em cash-game trainer: daily micro-lessons that teach bet/check/call/raise/fold and sizing by deriving EV from counting, never by memorising charts.",
   "type": "module",
   "private": true,
   "scripts": {
