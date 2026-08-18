@@ -2785,6 +2785,44 @@ const __m_src_learn_curriculum_level1_js = (() => {
         takeaway: 'Fold = 0. It is the number everything else must beat. Money already in is not yours.',
       },
       {
+        id: 'l1-equity-what',
+        unit: 'Your share of the pot',
+        title: 'Equity: how much of this pot is already yours',
+        skill: 'equity-intuition',
+        minutes: 20,
+        concepts: [
+          {
+            title: 'Every hand owns a share of the pot',
+            body: 'Equity is the share of the pot you would win on average if every remaining card were dealt and nobody folded. It is a percentage, and every hand has one — not just draws.\n\nTop pair against a weak pair might be 80% yours. A flush draw against top pair might be 35% yours. A hand with nothing at all against a made hand might be 5% yours. In each case, that percentage is your share of the money sitting in the middle.',
+          },
+          {
+            title: 'Why this is the number everything runs on',
+            body: 'Once you know your share, every later question answers itself. Should you call? Compare your share to the price. Should you bet, and how much? A pot that is mostly yours is one you want to grow; a pot that is mostly theirs is one you want to keep small.\n\nThat is the order the decisions are actually made in. Equity first, action second. Choosing a bet size before you know your equity is guessing, however confident it feels.',
+          },
+        ],
+        drills: [{ gen: 'estimate-equity', count: 3 }],
+        takeaway: 'Equity is your share of the pot, and every hand has one. It is the number every other decision starts from.',
+      },
+      {
+        id: 'l1-equity-estimate',
+        unit: 'Your share of the pot',
+        title: 'Estimating equity in a few seconds',
+        skill: 'equity-intuition',
+        minutes: 20,
+        concepts: [
+          {
+            title: 'Recognition, not calculation',
+            body: 'At the table you have seconds, so you will not compute equity — you will recognise the situation. A small set of anchors covers most of what you meet.\n\nTwo overcards against a pair is close to a coin flip, about 45%. The biggest pair against the second biggest is about 80%. A flush draw against one pair is roughly 35% on the flop. Top pair against a hand with nothing is around 90%.',
+          },
+          {
+            title: 'These are yours, not borrowed',
+            body: 'You are not memorising a chart. You will compute each of these in the drills, repeatedly, until you read the number off by sight — and because you derived them, you can adjust when a spot is slightly different rather than being stuck when it does not match.\n\nA rough number you understand beats a precise one you looked up, because only the first one is available when it matters.',
+          },
+        ],
+        drills: [{ gen: 'equity-anchor', count: 3 }, { gen: 'estimate-equity', count: 2 }],
+        takeaway: 'Learn a handful of anchor equities by deriving them. Then estimate by recognition, and adjust.',
+      },
+      {
         id: 'l1-03',
         unit: 'Counting your share',
         title: 'The cards you have not seen',
@@ -2851,6 +2889,10 @@ const __m_src_learn_curriculum_level1_js = (() => {
           {
             title: 'One division and you are done',
             body: 'Nine outs, 47 unseen cards. Nine divided by 47 is a bit under one in five — about 19%.\n\nThat is the whole calculation for the next card. Count the good ones, divide by the unseen ones. It works for any number of outs on any street, and you never have to look anything up.',
+          },
+          {
+            title: 'This is equity, arrived at a second way',
+            body: 'Notice what you just computed: your share of the pot. Counting outs is not a separate subject — it is how you work out equity when you are behind and need to improve.\n\nFor a made hand that is already ahead, you estimate equity by recognition instead. Two routes, one number.',
           },
         ],
         drills: [{ gen: 'outs-to-percent', count: 4, params: { street: 'turn' } }],
@@ -3582,6 +3624,25 @@ const __m_src_learn_curriculum_level4_js = (() => {
     subtitle: 'Sizing by expected value, not by convention',
     promise: 'Justify every bet size with a number, at every stage of the hand.',
     lessons: [
+      {
+        id: 'l4-equity-bridge',
+        unit: 'What size does',
+        title: 'The size comes from your equity',
+        skill: 'bet-sizing',
+        minutes: 25,
+        concepts: [
+          {
+            title: 'You cannot pick a size without a share',
+            body: '"How much should I bet?" has no answer on its own. The size follows from how much of the pot is already yours.\n\nWith 75% equity, three quarters of every chip that goes in is yours, so you want the pot to grow and you bet an amount they can still call. With 35%, most of what goes in is theirs, so growing the pot helps them — you either keep it small or bet only because folding them out is the plan.',
+          },
+          {
+            title: 'The order of the decision',
+            body: 'Estimate your equity. Decide whether you want the pot bigger or smaller. Then pick the number.\n\nMost players do this backwards: they reach for a size out of habit and justify it afterwards. Doing it in the right order is what makes sizing a decision rather than a reflex, and it is why the previous level spent so long on equity.',
+          },
+        ],
+        drills: [{ gen: 'equity-to-sizing', count: 3 }],
+        takeaway: 'Equity first, then whether you want the pot to grow, then the size. Never the size first.',
+      },
       {
         id: 'l4-01',
         unit: 'What size does',
@@ -5561,6 +5622,136 @@ const __m_src_learn_drills_decisions_js = (() => {
 
   const DECISION_GENERATORS = {
 
+
+    /* ---------------- What equity actually is ---------------- */
+
+    /**
+     * Equity for a hand that is not drawing.
+     *
+     * The course previously defined equity only as "outs divided by unseen
+     * cards", which silently teaches that equity is a property of draws. It is
+     * not: a made hand has equity too, and a learner who only knows the outs
+     * formula has no way to answer "how good is my top pair right now?" — which
+     * is the number every sizing decision depends on.
+     */
+    'estimate-equity': (rng) => {
+      const want = pick(rng, ['strong', 'pair', 'draw', 'air']);
+      const { hole, board, d } = dealSpot(rng, want);
+      const villain = dealVillain(rng, hole, board);
+      const eq = exactEquity(hole, villain, board);
+      const outs = countOuts(hole, villain, board);
+
+      return {
+        skill: 'equity-intuition',
+        scenario: { hole, board, villainCards: villain, revealVillain: true },
+        ...slider(
+          'Both hands are face up. Of the two of you, what share of this pot is yours — how often do you win if all five board cards are dealt?',
+          Math.round(eq.equity * 100),
+          { tolerance: 9 },
+        ),
+        hint: outs.aheadNow
+          ? 'You are ahead right now. Your equity is high — the question is how often they catch up.'
+          : 'You are behind. Your equity is whatever chance you have of improving past them.',
+        explain: [
+          `Your equity is ${pct(eq.equity)}, from enumerating all ${eq.trials} possible run-outs.`,
+          outs.aheadNow
+            ? `You have ${outs.heroDescription} against their ${outs.villainDescription} — ahead now, and ${outs.trapCards.length} cards would put them in front.`
+            : `You have ${outs.heroDescription} against their ${outs.villainDescription} — behind, with ${outs.outCount} cards that rescue you.`,
+          'Equity is not a property of draws. Every hand has one: it is simply your share of this pot, and a made hand that is well ahead has a high one without any outs to count.',
+          'This is the number every later decision runs on. How much to bet, whether to call, whether to raise — all of them start here.',
+        ],
+      };
+    },
+
+    /**
+     * The anchors worth recognising instantly, so equity can be estimated in
+     * seconds rather than computed.
+     */
+    'equity-anchor': (rng) => {
+      const spots = [
+        { hero: 'AcKc', villain: 'QhQd', board: '', label: 'two overcards against a pair, preflop' },
+        { hero: 'AcAd', villain: 'KcKd', board: '', label: 'the biggest pair against the second biggest, preflop' },
+        { hero: 'AcKc', villain: '7h7d', board: 'Qc8c2s', label: 'a flush draw with two overcards against a small pair' },
+        { hero: 'AhKd', villain: 'Qc9c', board: 'Ks7d2h', label: 'top pair, top kicker against nothing' },
+        { hero: '9h8h', villain: 'AcAd', board: 'Th7s2c', label: 'an open-ended straight draw against an overpair' },
+        { hero: 'AhAd', villain: 'KcQc', board: 'Jc8c3h', label: 'an overpair against a flush draw with two overcards' },
+      ];
+      const spot = pick(rng, spots);
+      const hero = parseCards(spot.hero);
+      const villain = parseCards(spot.villain);
+      const board = spot.board ? parseCards(spot.board) : [];
+      const eq = board.length
+        ? exactEquity(hero, villain, board)
+        : monteCarloEquity(hero, [villain], [], { trials: 8000, seed: randomInt(rng, 1e6) });
+
+      return {
+        skill: 'equity-intuition',
+        scenario: { hole: hero, board, villainCards: villain, revealVillain: true },
+        ...slider(
+          `A spot worth knowing by sight: **${spot.label}**. What is your equity?`,
+          Math.round(eq.equity * 100),
+          { tolerance: 8 },
+        ),
+        hint: 'These recur constantly. Learn a handful by heart and most table estimates become recognition rather than arithmetic.',
+        explain: [
+          `${pct(eq.equity)}.`,
+          'A small set of anchors covers most of what you meet: two overcards against a pair is close to a coin flip at about 45%; the biggest pair against the second is around 80%; a flush draw against one pair is roughly 35% on the flop; top pair against nothing is about 90%.',
+          'You are not memorising a chart. You have computed each of these; the point is that after enough repetitions you recognise the shape and read the number off instantly.',
+        ],
+      };
+    },
+
+    /**
+     * The bridge from equity to sizing — the step this course was missing.
+     *
+     * "How much should I bet?" is unanswerable on its own. The size follows from
+     * how much of the pot is already yours, so the chain has to be taught as one
+     * movement: estimate equity, decide whether you want the pot big or small,
+     * then pick the size that maximises it.
+     */
+    'equity-to-sizing': (rng) => {
+      const want = pick(rng, ['strong', 'pair', 'draw']);
+      const { hole, board, d } = dealSpot(rng, want);
+      const villain = dealVillain(rng, hole, board);
+      const eq = exactEquity(hole, villain, board);
+      const pot = pick(rng, [8, 10, 12, 16, 20]);
+      const ladder = sizingLadder(pot, [1 / 3, 0.5, 0.75, 1], foldModel(), eq.equity);
+      const wantsBigPot = eq.equity >= 0.6;
+
+      return {
+        skill: 'bet-sizing',
+        scenario: { hole, board, villainCards: villain, revealVillain: true, pot },
+        kind: 'steps',
+        prompt: `Pot is **${pot}bb** and they check to you. Work out the size the way it is actually decided — starting from your equity, not from a habit.`,
+        steps: [
+          slider('First: what share of this pot is already yours?', Math.round(eq.equity * 100), {
+            tolerance: 9,
+            hint: `You have ${d.madeDescription}.`,
+            explain: `${pct(eq.equity)}. Everything about the size follows from this number.`,
+          }),
+          choice('So do you want this pot to get bigger, or stay small?', [
+            'Bigger — most of it is mine already',
+            'Smaller — most of it is theirs',
+          ], wantsBigPot ? 0 : 1, {
+            hint: 'Building a pot is only good when you expect to win it. Above about half, growth helps you; below, it helps them.',
+            explain: wantsBigPot
+              ? `With ${pct(eq.equity)} you own most of this pot, so every extra chip in the middle is mostly yours. You want it bigger.`
+              : `With ${pct(eq.equity)} the pot is mostly theirs, so growing it grows their share. Keep it small — or bet only if folding them out is the plan.`,
+          }),
+          choice('Which size makes the most money?', ladder.options.map((o) => o.label),
+            ladder.options.indexOf(ladder.best), {
+              hint: 'Bigger bets fold more hands out but risk more. The best size is where those two stop trading evenly.',
+              explain: ladder.options.map((o) => `${o.label}: EV ${round(o.ev, 2)}bb`).join(' · '),
+            }),
+        ],
+        explain: [
+          ladder.verdict,
+          'This is the order the decision is actually made in: equity first, then whether you want the pot to grow, then the number. Choosing a size before knowing your equity is guessing, however confident the guess feels.',
+          ladder.guidance,
+        ],
+      };
+    },
+
     /* ---------------- Foundations of EV ---------------- */
 
     /** The zero that every other action is measured against. */
@@ -6322,6 +6513,8 @@ const __m_src_learn_exercises_js = (() => {
     'outs-to-percent': 2,
     'bet-size-price': 2,
     'ev-of-folding': 2,
+    'estimate-equity': 2,
+    'equity-anchor': 2,
     'decision-vs-result': 2,
     'blocker-count': 2,
     'open-or-fold': 2,
@@ -6349,6 +6542,7 @@ const __m_src_learn_exercises_js = (() => {
     'bet-or-check-ev': 4,
     'semibluff-ev': 4,
     'choose-bet-size': 4,
+    'equity-to-sizing': 4,
     'raise-or-call': 4,
     'sizing-choice': 4,
     'cbet-decision': 4,
@@ -7487,6 +7681,54 @@ const __m_src_i18n_lessons_zh_js = (() => {
    */
 
   const LESSONS_ZH = {
+  'l1-equity-what': {
+      unit: '你在这个底池里占多少',
+      title: '胜率：这个底池已经有多少是你的',
+      concepts: [
+        {
+          title: '每手牌都占底池的一部分',
+          body: '胜率（equity）就是：如果剩下的公共牌全部发完、没人弃牌，你平均能赢下这个底池的百分之多少。它是一个百分比，而且**每手牌都有**，不只是听牌才有。\n\n顶对（top pair）打一个小对子，可能 80% 是你的；同花听牌打顶对，可能 35% 是你的；什么都没有打一手成牌，可能只有 5% 是你的。这个百分比，就是中间那堆筹码里属于你的份额。',
+        },
+        {
+          title: '为什么后面所有事都从这个数字开始',
+          body: '知道了自己占多少，后面的问题就自己有答案了。该不该跟？拿你的份额跟价格比。该不该下注、下多少？大部分是你的底池，你希望它变大；大部分是对方的，你希望它别变大。\n\n这才是决策真正的顺序：**先胜率，后动作**。在不知道自己胜率的情况下先挑一个下注尺度，那不是决策，那是猜——不管猜的时候多有把握。',
+        },
+      ],
+      takeaway: '胜率 = 底池里属于你的份额，每手牌都有。它是后面每个决策的起点。',
+    },
+
+    'l1-equity-estimate': {
+      unit: '你在这个底池里占多少',
+      title: '几秒钟之内估出胜率',
+      concepts: [
+        {
+          title: '靠认，不靠算',
+          body: '牌桌上只有几秒钟，你不会去算胜率，你会**认**出这是什么局面。少数几个锚点就能覆盖你遇到的大部分情况。\n\n两张超牌打一个对子，接近五五开，约 45%；最大的对子打第二大的对子，约 80%；同花听牌打一个对子，翻牌圈大约 35%；顶对打一手什么都没有的牌，约 90%。',
+        },
+        {
+          title: '这些是你自己算出来的，不是抄的',
+          body: '你不是在背表。这些数字你会在练习里反复自己算，算到一眼就能读出来为止——而且因为是你推出来的，当局面稍有不同的时候你能自己调整，而不是"表上没有就卡住"。\n\n一个你理解的粗略数字，胜过一个你查来的精确数字，因为真正需要用的时候，只有前者在你脑子里。',
+        },
+      ],
+      takeaway: '先自己算，把几个锚点变成条件反射，然后靠认，再微调。',
+    },
+
+    'l4-equity-bridge': {
+      unit: '尺度决定了什么',
+      title: '尺度是从胜率来的',
+      concepts: [
+        {
+          title: '不知道自己占多少，就没法选尺度',
+          body: '"我该下多少？"这个问题单独拿出来是没有答案的。尺度取决于这个底池已经有多少是你的。\n\n胜率 75%，往里放的每一个筹码有四分之三是你的，所以你希望底池变大，你下一个他还跟得下去的数。胜率 35%，往里放的钱大部分是他的，把底池做大等于帮他——这时候要么控池，要么下注的唯一理由是把他打掉。',
+        },
+        {
+          title: '决策的先后顺序',
+          body: '先估胜率；再决定你想让底池变大还是变小；最后才是那个数字。\n\n大多数人是反过来做的：先凭习惯掏一个尺度，事后再给它找理由。按正确顺序来，下注尺度才是一个决策而不是条件反射——这也是为什么前面几级花那么多时间讲胜率。',
+        },
+      ],
+      takeaway: '先胜率 → 再决定底池要不要变大 → 最后才是数字。永远不要先定尺度。',
+    },
+
     'l1-01': {
       unit: '那个"零"',
       title: '每个动作都能换算成筹码',
@@ -7574,6 +7816,10 @@ const __m_src_i18n_lessons_zh_js = (() => {
         {
           title: '一次除法',
           body: '九张补牌，47 张没看到的牌。9 ÷ 47 略小于五分之一，大约 19%。\n\n算下一张牌的中牌率，全部就这一步：数出好牌，除以没看到的牌。任何补牌数、任何一条街都适用，永远不用查表。',
+        },
+        {
+          title: '你刚算出来的就是胜率，只是换了条路',
+          body: '注意你刚才算出来的是什么：你在这个底池里的份额。数补牌不是另一门学问——它就是"当你落后、需要改进时"计算胜率的方法。\n\n如果你已经领先、手上是成牌，那就用前面学的锚点去认。两条路，同一个数字。',
         },
       ],
       takeaway: '补牌 ÷ 未见牌数 = 下一张牌中的概率。',
@@ -8295,8 +8541,13 @@ const __m_src_learn_plan_js = (() => {
       let allowed = drills.length;
       const remaining = budgetMinutes - spent - conceptMinutes;
       if (remaining < drills.length * MINUTES_PER_QUESTION) {
-        allowed = Math.max(3, Math.floor(remaining / MINUTES_PER_QUESTION));
+        allowed = Math.floor(remaining / MINUTES_PER_QUESTION);
       }
+      // The question budget binds too, or a short daily goal still produces a
+      // long session whenever the next lesson happens to carry many drills.
+      allowed = Math.min(allowed, maxQuestions - asked);
+      // Never below three: meeting an idea without practising it is not a lesson.
+      allowed = Math.max(3, allowed);
 
       push(
         {

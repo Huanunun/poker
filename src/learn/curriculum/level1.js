@@ -57,6 +57,44 @@ export const LEVEL_1 = {
       takeaway: 'Fold = 0. It is the number everything else must beat. Money already in is not yours.',
     },
     {
+      id: 'l1-equity-what',
+      unit: 'Your share of the pot',
+      title: 'Equity: how much of this pot is already yours',
+      skill: 'equity-intuition',
+      minutes: 20,
+      concepts: [
+        {
+          title: 'Every hand owns a share of the pot',
+          body: 'Equity is the share of the pot you would win on average if every remaining card were dealt and nobody folded. It is a percentage, and every hand has one — not just draws.\n\nTop pair against a weak pair might be 80% yours. A flush draw against top pair might be 35% yours. A hand with nothing at all against a made hand might be 5% yours. In each case, that percentage is your share of the money sitting in the middle.',
+        },
+        {
+          title: 'Why this is the number everything runs on',
+          body: 'Once you know your share, every later question answers itself. Should you call? Compare your share to the price. Should you bet, and how much? A pot that is mostly yours is one you want to grow; a pot that is mostly theirs is one you want to keep small.\n\nThat is the order the decisions are actually made in. Equity first, action second. Choosing a bet size before you know your equity is guessing, however confident it feels.',
+        },
+      ],
+      drills: [{ gen: 'estimate-equity', count: 3 }],
+      takeaway: 'Equity is your share of the pot, and every hand has one. It is the number every other decision starts from.',
+    },
+    {
+      id: 'l1-equity-estimate',
+      unit: 'Your share of the pot',
+      title: 'Estimating equity in a few seconds',
+      skill: 'equity-intuition',
+      minutes: 20,
+      concepts: [
+        {
+          title: 'Recognition, not calculation',
+          body: 'At the table you have seconds, so you will not compute equity — you will recognise the situation. A small set of anchors covers most of what you meet.\n\nTwo overcards against a pair is close to a coin flip, about 45%. The biggest pair against the second biggest is about 80%. A flush draw against one pair is roughly 35% on the flop. Top pair against a hand with nothing is around 90%.',
+        },
+        {
+          title: 'These are yours, not borrowed',
+          body: 'You are not memorising a chart. You will compute each of these in the drills, repeatedly, until you read the number off by sight — and because you derived them, you can adjust when a spot is slightly different rather than being stuck when it does not match.\n\nA rough number you understand beats a precise one you looked up, because only the first one is available when it matters.',
+        },
+      ],
+      drills: [{ gen: 'equity-anchor', count: 3 }, { gen: 'estimate-equity', count: 2 }],
+      takeaway: 'Learn a handful of anchor equities by deriving them. Then estimate by recognition, and adjust.',
+    },
+    {
       id: 'l1-03',
       unit: 'Counting your share',
       title: 'The cards you have not seen',
@@ -123,6 +161,10 @@ export const LEVEL_1 = {
         {
           title: 'One division and you are done',
           body: 'Nine outs, 47 unseen cards. Nine divided by 47 is a bit under one in five — about 19%.\n\nThat is the whole calculation for the next card. Count the good ones, divide by the unseen ones. It works for any number of outs on any street, and you never have to look anything up.',
+        },
+        {
+          title: 'This is equity, arrived at a second way',
+          body: 'Notice what you just computed: your share of the pot. Counting outs is not a separate subject — it is how you work out equity when you are behind and need to improve.\n\nFor a made hand that is already ahead, you estimate equity by recognition instead. Two routes, one number.',
         },
       ],
       drills: [{ gen: 'outs-to-percent', count: 4, params: { street: 'turn' } }],

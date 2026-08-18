@@ -93,6 +93,136 @@ const chips = (v) => Math.max(1, Math.round(v * 2) / 2);
 
 export const DECISION_GENERATORS = {
 
+
+  /* ---------------- What equity actually is ---------------- */
+
+  /**
+   * Equity for a hand that is not drawing.
+   *
+   * The course previously defined equity only as "outs divided by unseen
+   * cards", which silently teaches that equity is a property of draws. It is
+   * not: a made hand has equity too, and a learner who only knows the outs
+   * formula has no way to answer "how good is my top pair right now?" — which
+   * is the number every sizing decision depends on.
+   */
+  'estimate-equity': (rng) => {
+    const want = pick(rng, ['strong', 'pair', 'draw', 'air']);
+    const { hole, board, d } = dealSpot(rng, want);
+    const villain = dealVillain(rng, hole, board);
+    const eq = exactEquity(hole, villain, board);
+    const outs = countOuts(hole, villain, board);
+
+    return {
+      skill: 'equity-intuition',
+      scenario: { hole, board, villainCards: villain, revealVillain: true },
+      ...slider(
+        'Both hands are face up. Of the two of you, what share of this pot is yours — how often do you win if all five board cards are dealt?',
+        Math.round(eq.equity * 100),
+        { tolerance: 9 },
+      ),
+      hint: outs.aheadNow
+        ? 'You are ahead right now. Your equity is high — the question is how often they catch up.'
+        : 'You are behind. Your equity is whatever chance you have of improving past them.',
+      explain: [
+        `Your equity is ${pct(eq.equity)}, from enumerating all ${eq.trials} possible run-outs.`,
+        outs.aheadNow
+          ? `You have ${outs.heroDescription} against their ${outs.villainDescription} — ahead now, and ${outs.trapCards.length} cards would put them in front.`
+          : `You have ${outs.heroDescription} against their ${outs.villainDescription} — behind, with ${outs.outCount} cards that rescue you.`,
+        'Equity is not a property of draws. Every hand has one: it is simply your share of this pot, and a made hand that is well ahead has a high one without any outs to count.',
+        'This is the number every later decision runs on. How much to bet, whether to call, whether to raise — all of them start here.',
+      ],
+    };
+  },
+
+  /**
+   * The anchors worth recognising instantly, so equity can be estimated in
+   * seconds rather than computed.
+   */
+  'equity-anchor': (rng) => {
+    const spots = [
+      { hero: 'AcKc', villain: 'QhQd', board: '', label: 'two overcards against a pair, preflop' },
+      { hero: 'AcAd', villain: 'KcKd', board: '', label: 'the biggest pair against the second biggest, preflop' },
+      { hero: 'AcKc', villain: '7h7d', board: 'Qc8c2s', label: 'a flush draw with two overcards against a small pair' },
+      { hero: 'AhKd', villain: 'Qc9c', board: 'Ks7d2h', label: 'top pair, top kicker against nothing' },
+      { hero: '9h8h', villain: 'AcAd', board: 'Th7s2c', label: 'an open-ended straight draw against an overpair' },
+      { hero: 'AhAd', villain: 'KcQc', board: 'Jc8c3h', label: 'an overpair against a flush draw with two overcards' },
+    ];
+    const spot = pick(rng, spots);
+    const hero = parseCards(spot.hero);
+    const villain = parseCards(spot.villain);
+    const board = spot.board ? parseCards(spot.board) : [];
+    const eq = board.length
+      ? exactEquity(hero, villain, board)
+      : monteCarloEquity(hero, [villain], [], { trials: 8000, seed: randomInt(rng, 1e6) });
+
+    return {
+      skill: 'equity-intuition',
+      scenario: { hole: hero, board, villainCards: villain, revealVillain: true },
+      ...slider(
+        `A spot worth knowing by sight: **${spot.label}**. What is your equity?`,
+        Math.round(eq.equity * 100),
+        { tolerance: 8 },
+      ),
+      hint: 'These recur constantly. Learn a handful by heart and most table estimates become recognition rather than arithmetic.',
+      explain: [
+        `${pct(eq.equity)}.`,
+        'A small set of anchors covers most of what you meet: two overcards against a pair is close to a coin flip at about 45%; the biggest pair against the second is around 80%; a flush draw against one pair is roughly 35% on the flop; top pair against nothing is about 90%.',
+        'You are not memorising a chart. You have computed each of these; the point is that after enough repetitions you recognise the shape and read the number off instantly.',
+      ],
+    };
+  },
+
+  /**
+   * The bridge from equity to sizing — the step this course was missing.
+   *
+   * "How much should I bet?" is unanswerable on its own. The size follows from
+   * how much of the pot is already yours, so the chain has to be taught as one
+   * movement: estimate equity, decide whether you want the pot big or small,
+   * then pick the size that maximises it.
+   */
+  'equity-to-sizing': (rng) => {
+    const want = pick(rng, ['strong', 'pair', 'draw']);
+    const { hole, board, d } = dealSpot(rng, want);
+    const villain = dealVillain(rng, hole, board);
+    const eq = exactEquity(hole, villain, board);
+    const pot = pick(rng, [8, 10, 12, 16, 20]);
+    const ladder = sizingLadder(pot, [1 / 3, 0.5, 0.75, 1], foldModel(), eq.equity);
+    const wantsBigPot = eq.equity >= 0.6;
+
+    return {
+      skill: 'bet-sizing',
+      scenario: { hole, board, villainCards: villain, revealVillain: true, pot },
+      kind: 'steps',
+      prompt: `Pot is **${pot}bb** and they check to you. Work out the size the way it is actually decided — starting from your equity, not from a habit.`,
+      steps: [
+        slider('First: what share of this pot is already yours?', Math.round(eq.equity * 100), {
+          tolerance: 9,
+          hint: `You have ${d.madeDescription}.`,
+          explain: `${pct(eq.equity)}. Everything about the size follows from this number.`,
+        }),
+        choice('So do you want this pot to get bigger, or stay small?', [
+          'Bigger — most of it is mine already',
+          'Smaller — most of it is theirs',
+        ], wantsBigPot ? 0 : 1, {
+          hint: 'Building a pot is only good when you expect to win it. Above about half, growth helps you; below, it helps them.',
+          explain: wantsBigPot
+            ? `With ${pct(eq.equity)} you own most of this pot, so every extra chip in the middle is mostly yours. You want it bigger.`
+            : `With ${pct(eq.equity)} the pot is mostly theirs, so growing it grows their share. Keep it small — or bet only if folding them out is the plan.`,
+        }),
+        choice('Which size makes the most money?', ladder.options.map((o) => o.label),
+          ladder.options.indexOf(ladder.best), {
+            hint: 'Bigger bets fold more hands out but risk more. The best size is where those two stop trading evenly.',
+            explain: ladder.options.map((o) => `${o.label}: EV ${round(o.ev, 2)}bb`).join(' · '),
+          }),
+      ],
+      explain: [
+        ladder.verdict,
+        'This is the order the decision is actually made in: equity first, then whether you want the pot to grow, then the number. Choosing a size before knowing your equity is guessing, however confident the guess feels.',
+        ladder.guidance,
+      ],
+    };
+  },
+
   /* ---------------- Foundations of EV ---------------- */
 
   /** The zero that every other action is measured against. */

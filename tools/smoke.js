@@ -9,6 +9,14 @@
  */
 
 import { chromium } from 'playwright';
+import { LESSONS } from '../src/learn/curriculum/index.js';
+
+/**
+ * Real level-1 lesson ids, read from the curriculum rather than guessed.
+ * An earlier version assumed ids ran l1-01..l1-20, which silently stopped
+ * unlocking level 2 the moment a lesson was inserted with a descriptive id.
+ */
+const LEVEL_ONE_IDS = LESSONS.filter((l) => l.level === 1).map((l) => l.id);
 
 const BASE = process.env.SMOKE_URL || 'http://localhost:8080';
 const problems = [];
@@ -152,15 +160,13 @@ log(completed >= 1, `the path shows ${completed} completed lesson(s)`);
 // Day one teaches card notation, which is all single questions, so the step
 // chain — the format the whole course is built around — needs a seeded profile
 // to reach. This unlocks level 2 and opens the outs-counting lesson directly.
-await page.evaluate(() => {
+await page.evaluate((ids) => {
   const key = 'holdem-dojo:v1';
   const profile = JSON.parse(localStorage.getItem(key));
   profile.completedLessons ||= {};
-  for (let i = 1; i <= 20; i++) {
-    profile.completedLessons[`l1-${String(i).padStart(2, '0')}`] = { at: Date.now(), score: 1 };
-  }
+  for (const id of ids) profile.completedLessons[id] = { at: Date.now(), score: 1 };
   localStorage.setItem(key, JSON.stringify(profile));
-});
+}, LEVEL_ONE_IDS);
 await page.reload({ waitUntil: 'networkidle' });
 await page.locator('.nav button', { hasText: 'Path' }).click();
 await page.waitForTimeout(150);

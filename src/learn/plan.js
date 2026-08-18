@@ -235,8 +235,13 @@ export function buildSession(progress, budgetMinutes = 30, now = Date.now(), see
     let allowed = drills.length;
     const remaining = budgetMinutes - spent - conceptMinutes;
     if (remaining < drills.length * MINUTES_PER_QUESTION) {
-      allowed = Math.max(3, Math.floor(remaining / MINUTES_PER_QUESTION));
+      allowed = Math.floor(remaining / MINUTES_PER_QUESTION);
     }
+    // The question budget binds too, or a short daily goal still produces a
+    // long session whenever the next lesson happens to carry many drills.
+    allowed = Math.min(allowed, maxQuestions - asked);
+    // Never below three: meeting an idea without practising it is not a lesson.
+    allowed = Math.max(3, allowed);
 
     push(
       {

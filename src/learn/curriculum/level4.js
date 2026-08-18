@@ -18,6 +18,25 @@ export const LEVEL_4 = {
   promise: 'Justify every bet size with a number, at every stage of the hand.',
   lessons: [
     {
+      id: 'l4-equity-bridge',
+      unit: 'What size does',
+      title: 'The size comes from your equity',
+      skill: 'bet-sizing',
+      minutes: 25,
+      concepts: [
+        {
+          title: 'You cannot pick a size without a share',
+          body: '"How much should I bet?" has no answer on its own. The size follows from how much of the pot is already yours.\n\nWith 75% equity, three quarters of every chip that goes in is yours, so you want the pot to grow and you bet an amount they can still call. With 35%, most of what goes in is theirs, so growing the pot helps them — you either keep it small or bet only because folding them out is the plan.',
+        },
+        {
+          title: 'The order of the decision',
+          body: 'Estimate your equity. Decide whether you want the pot bigger or smaller. Then pick the number.\n\nMost players do this backwards: they reach for a size out of habit and justify it afterwards. Doing it in the right order is what makes sizing a decision rather than a reflex, and it is why the previous level spent so long on equity.',
+        },
+      ],
+      drills: [{ gen: 'equity-to-sizing', count: 3 }],
+      takeaway: 'Equity first, then whether you want the pot to grow, then the size. Never the size first.',
+    },
+    {
       id: 'l4-01',
       unit: 'What size does',
       title: 'Your size is the price you hand them',
